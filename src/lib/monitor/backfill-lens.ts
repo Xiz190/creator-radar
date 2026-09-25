@@ -1,9 +1,10 @@
 // 补齐「创作者视角」：给还没有 creator_lens 的条目批量生成一句视角。
 // 与抓取解耦——抓取只进货，视角单独补。脚本 scripts/gen-lens.ts 与
 // 后台「一键补齐」按钮（/api/monitor/items action=backfill-lens）共用同一套逻辑口径。
+// 每次抓取成功后 runner 会调 backfillLensAfterRun 在后台自动补（中→英），不再靠人记得手动跑。
 
 import type { Pool } from "pg";
-import { generateCreatorLens, hasLlm } from "./creator-lens";
+import { generateCreatorLens, generateCreatorLensEn, hasLlm } from "./creator-lens";
 
 export type BackfillLensResult = {
   ok: boolean;
@@ -88,4 +89,73 @@ export async function backfillMissingLens(pool: Pool, limit = 40): Promise<Backf
     (remaining > 0 ? `，还剩 ${remaining} 条缺视角（可再点一次继续）。` : "，已全部补齐。");
 
   return { ok: true, scanned: rows.length, filled, failed, remaining, total, missingBefore, message };
+}
+
+/**
+ * 补齐缺英文视角的条目（creator_lens_en）。只填空的。
+ * 与 gen-lens-en.ts 同口径：从原始标题+正文直接生成，不拿中文 lens 当输入；
+ * 不写 importance_level（那个字段只由中文版判定）。
+ */
+export async function backfillMissingLensEn(
+  pool: Pool,
+  limit = 40,
+): Promise<{ filled: number; failed: number }> {
+  const cap = Math.max(1, Math.min(500, Number.isFinite(limit) ? limit : 40));
+  if (!hasLlm()) return { filled: 0, failed: 0 };
+
+  const { rows } = await pool.query<{ source_id: string; url: string; title: string; body: string }>(
+    `select source_id, url, title, coalesce(content_json::text,'') as body
+     from monitor_items
+     where list_published_at >= $1 and coalesce(creator_lens_en,'') = ''
+     order by list_published_at desc
+     limit $2`,
+    [SINCE, cap],
+  );
+
+  let filled = 0;
+  let failed = 0;
+  for (const r of rows) {
+    try {
+      const { lens } = await generateCreatorLensEn(r.title, r.body);
+      await pool.query(
+        `update monitor_items set creator_lens_en = $3 where source_id = $1 and url = $2`,
+        [r.source_id, r.url, lens],
+      );
+      filled += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { filled, failed };
+}
+
+// 同一时刻只跑一轮；并发调用拿到的是同一个 Promise（脚本可以 await 它，等后台那轮跑完再退出）
+let inflight: Promise<void> | null = null;
+
+/**
+ * 抓取结束后自动补视角：先中文、再英文。
+ * 失败只记日志，不影响抓取结果；没配 LLM 时直接跳过。
+ */
+export function backfillLensAfterRun(pool: Pool, limit = 40): Promise<void> {
+  if (inflight) return inflight;
+  if (!hasLlm()) return Promise.resolve();
+
+  inflight = (async () => {
+    try {
+      const zh = await backfillMissingLens(pool, limit);
+      const en = await backfillMissingLensEn(pool, limit);
+      if (zh.scanned > 0 || en.filled > 0 || en.failed > 0) {
+        console.log(
+          `[lens] 抓取后自动补齐：中文 ${zh.message} 英文补 ${en.filled} 条` +
+            (en.failed ? `，失败 ${en.failed} 条` : "") + "。",
+        );
+      }
+    } catch (error) {
+      console.error("[lens] 抓取后自动补齐失败（下次抓取再试）：",
+        error instanceof Error ? error.message : String(error));
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
 }

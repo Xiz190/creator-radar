@@ -1,5 +1,7 @@
 // 一次性脚本：手动跑指定来源的抓取。用法：
 //   npx tsx --env-file=.env.local scripts/run-source.ts suno_blog
+import { getPgPool } from "@/lib/db";
+import { backfillLensAfterRun } from "@/lib/monitor/backfill-lens";
 import { runMonitorOnce } from "@/lib/monitor/runner";
 
 async function main() {
@@ -17,6 +19,8 @@ async function main() {
         (r.errorMessage ? `  [错误] ${r.errorMessage}` : ""),
     );
   }
+  console.log("补齐创作者视角（中→英）...");
+  await backfillLensAfterRun(getPgPool()); // runner 已在后台启动这一轮，这里等它跑完再退出
   process.exit(0);
 }
 

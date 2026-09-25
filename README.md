@@ -71,7 +71,7 @@ Creator Radar 把「找 → 核实 → 关联 → 分析」这条情报工作流
 | 数据库 | PostgreSQL 16 |
 | 样式 | Tailwind CSS 4 |
 | AI | DeepSeek（OpenAI 兼容协议） |
-| 测试 | Vitest（816 个用例） |
+| 测试 | Vitest（820 个用例） |
 
 ---
 
