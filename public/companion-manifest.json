@@ -1,0 +1,19 @@
+{
+  "name": "Creator Radar",
+  "short_name": "Radar",
+  "description": "Creator Radar companion — AI tool and industry signals for independent creators",
+  "start_url": "/m",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#b23c17",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["news", "music", "productivity"],
+  "lang": "en"
+}
