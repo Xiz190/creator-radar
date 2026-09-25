@@ -17,6 +17,7 @@ import { fetchRunwaySitemap } from "@/lib/monitor/runway-list";
 import { fetchCnafLatest } from "@/lib/monitor/cnaf-list";
 import { fetchKreaBlog } from "@/lib/monitor/krea-list";
 import { fetchLumaNews } from "@/lib/monitor/luma-list";
+import { backfillLensAfterRun } from "@/lib/monitor/backfill-lens";
 import {
   ensureMonitorSchema,
   findExistingUrls,
@@ -441,6 +442,8 @@ export async function runMonitorOnce(options: RunMonitorOptions = {}) {
     run.finishedAt = nowIso();
     run.results = results;
     await updateRunFinished(run);
+    // 抓取只进货；创作者视角在后台补齐——不 await：不拖慢本次返回，也不占抓取锁
+    void backfillLensAfterRun(pool);
     return run;
   } catch (error) {
     run.status = "error";
