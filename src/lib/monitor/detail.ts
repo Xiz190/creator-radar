@@ -113,7 +113,8 @@ export async function captureDetailPage(url: string) {
 function extractTitle(html: string): string | null {
   const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   if (match) {
-    return match[1].trim().replace(/\s+/g, " ");
+    // <title> 里常见 &#8211; 这类实体（WordPress 站尤其多），要解码成真字符再存
+    return decodeEntities(match[1].trim().replace(/\s+/g, " "));
   }
   return null;
 }
@@ -191,7 +192,7 @@ function looksLikeBoilerplate(text: string): boolean {
 }
 
 // 完整解码 HTML 实体（含数字实体，如 &#39; &#x27; &quot; 等）
-function decodeEntities(text: string): string {
+export function decodeEntities(text: string): string {
   return text
     .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
@@ -203,21 +204,35 @@ function decodeEntities(text: string): string {
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&hellip;/g, "…")
     .replace(/&mdash;/g, "—")
-    .replace(/&ndash;/g, "–");
+    .replace(/&ndash;/g, "–")
+    .replace(/&ldquo;/g, "“")
+    .replace(/&rdquo;/g, "”")
+    .replace(/&lsquo;/g, "‘")
+    .replace(/&rsquo;/g, "’")
+    .replace(/&middot;/g, "·")
+    .replace(/&copy;/g, "©");
 }
+
+// 标签里的属性值可能含 ">"（如 Tailwind 的 class="[&>strong]:tw-font-normal"，ElevenLabs 就是这样），
+// 简单的 <[^>]+> 会在那里提前截断，把后半截属性当成正文。这里跳过引号里的内容。
+const ATTRS = `(?:[^>"']|"[^"]*"|'[^']*')*`;
+const ANY_TAG = new RegExp(`<${ATTRS}>`, "g");
+const P_BLOCK = new RegExp(`<p(?:\\s${ATTRS})?>([\\s\\S]*?)<\\/p>`, "gi");
+const DIV_BLOCK = new RegExp(`<(?:div|section|article)(?:\\s${ATTRS})?>([\\s\\S]*?)<\\/(?:div|section|article)>`, "gi");
+const DIV_OPEN = new RegExp(`<(?:div|section|article)(?:\\s${ATTRS})?>`, "i");
 
 // 把一个 HTML 片段转成纯文本段落
 function textFromBlock(block: string): string {
-  return decodeEntities(block.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+  return decodeEntities(block.replace(ANY_TAG, " ").replace(/\s+/g, " ").trim());
 }
 
-function extractParagraphs(rawHtml: string): string[] {
+export function extractParagraphs(rawHtml: string): string[] {
   const html = stripNoiseRegions(rawHtml);
   const paragraphs: string[] = [];
   const seen = new Set<string>(); // 去重：部分站点(桌面/移动菜单)会重复渲染整段
 
   // 1) 优先 <p>（传统博客）
-  const pTags = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi);
+  const pTags = html.match(P_BLOCK);
   if (pTags) {
     for (const p of pTags) {
       const text = textFromBlock(p);
@@ -230,11 +245,11 @@ function extractParagraphs(rawHtml: string): string[] {
 
   // 2) <p> 不足时，尝试 <div>/<section> 里的文字块（React/div 结构的站，如 Suno/ElevenLabs）
   if (paragraphs.length < 3) {
-    const blockTags = html.match(/<(?:div|section|article)[^>]*>([\s\S]*?)<\/(?:div|section|article)>/gi);
+    const blockTags = html.match(DIV_BLOCK);
     if (blockTags) {
       for (const block of blockTags) {
         // 跳过嵌套/无正文的块
-        if (/<(?:div|section|article)[^>]*>/i.test(block.replace(/<\/(?:div|section|article)>/g, ""))) continue;
+        if (DIV_OPEN.test(block.replace(/<\/(?:div|section|article)>/g, ""))) continue;
         const text = textFromBlock(block);
         if (text.length >= 12 && !looksLikeBoilerplate(text) && !seen.has(text)) {
           seen.add(text);
@@ -246,7 +261,7 @@ function extractParagraphs(rawHtml: string): string[] {
 
   // 3) 兜底：整页剥标签后按标点切分（避免整页吞导航/JS 残渣）
   if (paragraphs.length === 0) {
-    const stripped = decodeEntities(html.replace(/<[^>]+>/g, " "))
+    const stripped = decodeEntities(html.replace(ANY_TAG, " "))
       .replace(/\s+/g, " ")
       .trim();
     if (stripped.length > 50) {

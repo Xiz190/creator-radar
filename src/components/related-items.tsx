@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { usePrefs } from "@/contexts/prefs-context";
+import { useT } from "@/lib/i18n";
+import { ImportanceBadge } from "@/components/importance-badge";
 import {
   Link, Paperclip, Tag,
 } from "lucide-react";
@@ -28,9 +31,9 @@ type RelatedItemsProps = {
 };
 
 const TAB_CONFIG = [
-  { key: "sameTopic", label: "同领域", icon: Tag, description: "标签高度重合" },
-  { key: "sameDept", label: "同来源", icon: Tag, description: "同一来源平台的内容" },
-  { key: "cited", label: "被引用", icon: Link, description: "本文中引用的文件" },
+  { key: "sameTopic", labelKey: "related.same-topic", icon: Tag, descKey: "related.same-topic-desc" },
+  { key: "sameDept", labelKey: "related.same-source", icon: Tag, descKey: "related.same-source-desc" },
+  { key: "cited", labelKey: "related.cited", icon: Link, descKey: "related.cited-desc" },
 ] as const;
 
 function getImportanceBadge(level: string) {
@@ -47,7 +50,11 @@ function getImportanceBadge(level: string) {
 }
 
 export function RelatedItems({ data }: RelatedItemsProps) {
-  const [activeTab, setActiveTab] = useState<"sameTopic" | "sameDept" | "cited">("sameTopic");
+  const t = useT(usePrefs().language);
+  // 默认打开第一个有内容的标签，免得一进来停在「同主题 (0) · 暂无」而旁边其实有内容
+  const [activeTab, setActiveTab] = useState<"sameTopic" | "sameDept" | "cited">(() =>
+    data.sameTopic.length > 0 ? "sameTopic" : data.sameDept.length > 0 ? "sameDept" : data.cited.length > 0 ? "cited" : "sameTopic",
+  );
 
   const items = data[activeTab];
 
@@ -86,9 +93,9 @@ export function RelatedItems({ data }: RelatedItemsProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Paperclip className="h-5 w-5" aria-hidden />
-          <h2 className="text-base font-semibold text-slate-900">相关内容</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t("related.title")}</h2>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-            共 {totalCount} 条
+            {t("inbox.count", { n: totalCount })}
           </span>
         </div>
         {hasCompareButton && (
@@ -99,14 +106,14 @@ export function RelatedItems({ data }: RelatedItemsProps) {
               className="inline-flex h-8 items-center gap-1 rounded-full bg-violet-600 px-3 text-xs font-medium text-white transition hover:bg-violet-700"
             >
               <span>⇄</span>
-              <span>对比前 {displayCount} 条</span>
+              <span>{t("related.compare-top", { n: displayCount })}</span>
             </button>
             <a
               href="/compare"
               className="inline-flex h-8 items-center gap-1 rounded-full border border-slate-200 px-3 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
             >
               <span>→</span>
-              <span>去对比</span>
+              <span>{t("qa.btn.go-compare")}</span>
             </a>
           </div>
         )}
@@ -127,8 +134,8 @@ export function RelatedItems({ data }: RelatedItemsProps) {
               } ${count === 0 ? "opacity-40" : ""}`}
               disabled={count === 0}
             >
-              <span className="inline-flex items-center gap-1"><tab.icon className="h-3.5 w-3.5" aria-hidden />{tab.label}</span>
-              <span className="ml-1 text-[10px]">({count})</span>
+              <span className="inline-flex items-center gap-1"><tab.icon className="h-3.5 w-3.5" aria-hidden />{t(tab.labelKey)}</span>
+              <span className="ml-1 text-[11px]">({count})</span>
               {isActive && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900" />
               )}
@@ -144,7 +151,7 @@ export function RelatedItems({ data }: RelatedItemsProps) {
               <a
                 key={idx}
                 href={`/items/${item.sourceId}?sourceId=${item.sourceId}&url=${encodeURIComponent(item.url)}`}
-                className="block rounded-xl border border-slate-200 p-3 transition hover:border-sky-300 hover:bg-sky-50/30"
+                className="block rounded-xl border border-slate-200 p-3 transition hover:border-slate-300 hover:bg-slate-50"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
@@ -155,38 +162,23 @@ export function RelatedItems({ data }: RelatedItemsProps) {
                       <span>{item.departmentName}</span>
                       <span>·</span>
                       <span>{item.listPublishedAt}</span>
-                      {item.similarityScore !== undefined && (
-                        <>
-                          <span>·</span>
-                          <span className="text-sky-600">
-                            相似度 {item.similarityScore}%
-                          </span>
-                        </>
-                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${getImportanceBadge(item.importanceLevel)}`}
-                    >
-                      {item.importanceLevel}
-                    </span>
-                    <span className="text-[10px] text-violet-600">
-                      {item.keywordScore} 分
-                    </span>
+                    <ImportanceBadge level={item.importanceLevel} keywordScore={item.keywordScore} className="text-[11px]" />
                   </div>
                 </div>
               </a>
             ))}
             {items.length > 8 && (
               <div className="text-center text-xs text-slate-400">
-                还有 {items.length - 8} 条相关内容
+                {t("related.more", { n: items.length - 8 })}
               </div>
             )}
           </div>
         ) : (
           <div className="py-8 text-center text-sm text-slate-400">
-            暂无相关内容
+            {t("related.empty")}
           </div>
         )}
       </div>

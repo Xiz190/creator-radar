@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePrefs } from "@/contexts/prefs-context";
 
 export function ScrollToTop() {
+  const en = usePrefs().language === "en";
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -19,9 +21,9 @@ export function ScrollToTop() {
     <button
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      title="回到顶部"
-      className="fixed bottom-20 right-4 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 sm:bottom-6 sm:right-6"
-      aria-label="回到顶部"
+      title={en ? "Back to top" : "回到顶部"}
+      className="hide-when-zoomed fixed bottom-20 right-4 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 sm:bottom-6 sm:right-6"
+      aria-label={en ? "Back to top" : "回到顶部"}
     >
       ↑
     </button>

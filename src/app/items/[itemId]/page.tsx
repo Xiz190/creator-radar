@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
-import { FloatingBackButton } from "@/components/back-button";
+import { ItemBreadcrumb } from "@/components/item-breadcrumb";
 import { ItemDetailTabs } from "@/components/item-detail-tabs";
 import {
   ensureMonitorSchema,
@@ -241,24 +241,11 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
   const images = item.attachments.filter((a) => a.kind === "image");
   const externalLinks = item.externalLinks ?? [];
 
-  const contentQualityBadge = (() => {
-    switch (item.contentQuality) {
-      case "full":
-        return { label: "已提取正文", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-      case "partial":
-        return { label: "内容疑似不完整", color: "bg-amber-50 text-amber-700 border-amber-200" };
-      case "empty":
-        return { label: "未提取到正文", color: "bg-rose-50 text-rose-700 border-rose-200" };
-      default:
-        return { label: "内容未抓取", color: "bg-slate-100 text-slate-700 border-slate-200" };
-    }
-  })();
 
   const relatedPoliciesData: RelatedItemsData = {
-    sameTopic: sameTopicItems.map((it, i) => ({
+    sameTopic: sameTopicItems.map((it) => ({
       ...it,
       relationType: "sameTopic" as const,
-      similarityScore: 70 + ((i * 5) % 25),
     })),
     sameDept: sameDeptItems.map((it) => ({
       ...it,
@@ -280,44 +267,13 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
     sameTopicCount: relatedPoliciesData.sameTopic.length,
     sameDeptCount: relatedPoliciesData.sameDept.length,
     citedCount: relatedPoliciesData.cited.length,
-    similarityScores: relatedPoliciesData.sameTopic.map((it) => it.similarityScore),
   });
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <SiteHeader />
       <div className="mx-auto max-w-4xl gap-6 px-6 py-8 lg:py-10">
-        <div className="mb-4 flex flex-wrap items-center gap-1.5 text-sm text-slate-500">
-          <Link
-            href="/inbox"
-            scroll={false}
-            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-          >
-            ← 收件箱
-          </Link>
-          <span className="text-slate-300">/</span>
-          {item.departmentName && (
-            <>
-              <Link
-                href={`/inbox?dept=${encodeURIComponent(item.departmentName)}`}
-                scroll={false}
-                className="text-xs text-slate-500 transition hover:text-slate-800 hover:underline underline-offset-2"
-              >
-                {item.departmentName}
-              </Link>
-              <span className="text-slate-300">/</span>
-            </>
-          )}
-          {item.channelName && (
-            <>
-              <span className="text-xs text-slate-500">{item.channelName}</span>
-              <span className="text-slate-300">/</span>
-            </>
-          )}
-          <span className="max-w-[260px] truncate text-xs text-slate-700" title={item.title}>
-            {item.title.length > 40 ? item.title.slice(0, 40) + "…" : item.title}
-          </span>
-        </div>
+        <ItemBreadcrumb departmentName={item.departmentName} channelName={item.channelName} title={item.title} />
 
         <article className="rounded-3xl border border-slate-200 bg-white p-6 lg:p-10 shadow-sm">
           <ItemDetailTabs
@@ -325,14 +281,12 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
             docs={docs}
             images={images}
             externalLinks={externalLinks}
-            contentQualityBadge={contentQualityBadge}
             related={related}
             relatedPoliciesData={relatedPoliciesData}
             isMock={!dbItem}
           />
         </article>
       </div>
-      <FloatingBackButton />
     </main>
   );
 }

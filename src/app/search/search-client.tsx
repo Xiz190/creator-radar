@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { usePrefs } from "@/contexts/prefs-context";
 import { SiteHeader } from "@/components/site-header";
 import { SIGNAL_CATEGORIES } from "@/lib/monitor/content-meta";
 import {
@@ -47,7 +48,8 @@ function highlight(text: string, q: string): string {
 }
 
 function ItemCard({ item, q }: { item: SearchItem; q: string }) {
-  const pub = item.listPublishedAt ? new Date(item.listPublishedAt).toLocaleDateString("zh-CN") : "";
+  const en = usePrefs().language === "en";
+  const pub = item.listPublishedAt ? new Date(item.listPublishedAt).toLocaleDateString(en ? "en-US" : "zh-CN") : "";
   return (
     <a
       href={item.url}
@@ -57,14 +59,14 @@ function ItemCard({ item, q }: { item: SearchItem; q: string }) {
     >
       <p
         className="text-sm font-medium leading-snug text-slate-900 line-clamp-2"
-        dangerouslySetInnerHTML={{ __html: highlight(item.title || "（无标题）", q) }}
+        dangerouslySetInnerHTML={{ __html: highlight(item.title || (en ? "(untitled)" : "（无标题）"), q) }}
       />
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
         {item.sourceName && <span>{item.sourceName}</span>}
         {item.channelName && <span>· {item.channelName}</span>}
         {pub && <span>· {pub}</span>}
         {item.importanceLevel != null && item.importanceLevel >= 4 && (
-          <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-rose-600">高优先</span>
+          <span className="rounded-full bg-rose-50 px-1.5 py-0.5 text-rose-600">{en ? "High priority" : "高优先"}</span>
         )}
       </div>
       {item.summary && (
@@ -78,7 +80,8 @@ function ItemCard({ item, q }: { item: SearchItem; q: string }) {
 }
 
 function ContentCard({ item, q }: { item: ContentHit; q: string }) {
-  const pub = item.listPublishedAt ? new Date(item.listPublishedAt).toLocaleDateString("zh-CN") : "";
+  const en = usePrefs().language === "en";
+  const pub = item.listPublishedAt ? new Date(item.listPublishedAt).toLocaleDateString(en ? "en-US" : "zh-CN") : "";
   return (
     <Link
       href={detailHref(item.sourceId, item.url)}
@@ -86,7 +89,7 @@ function ContentCard({ item, q }: { item: ContentHit; q: string }) {
     >
       <p
         className="text-sm font-medium leading-snug text-slate-900 line-clamp-2"
-        dangerouslySetInnerHTML={{ __html: highlight(item.title || "（无标题）", q) }}
+        dangerouslySetInnerHTML={{ __html: highlight(item.title || (en ? "(untitled)" : "（无标题）"), q) }}
       />
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
         {item.departmentName && <span>{item.departmentName}</span>}
@@ -111,6 +114,7 @@ function ContentCard({ item, q }: { item: ContentHit; q: string }) {
 
 // 初始关键词由服务端页面（page.tsx）从网址读出后传入；之后的变化由本组件自己写回网址
 export function SearchClient({ initialQ }: { initialQ: string }) {
+  const en = usePrefs().language === "en";
 
   const [q, setQ] = useState(initialQ);
   const [committed, setCommitted] = useState(initialQ);
@@ -195,6 +199,41 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [committed, page, tab]);
 
+  // 三个标签页的数量一起查（每个只取 1 条），否则没点开的标签页一直显示初始值 0，
+  // 看起来像「动态资讯里没有相关内容」。完整结果仍在切到该标签页时再加载。
+  useEffect(() => {
+    const query = committed.trim();
+    if (!query) return;
+    const ctrl = new AbortController();
+    const one = new URLSearchParams({ view: "list", q: query, limit: "1", offset: "0" });
+    const sig = new URLSearchParams(one);
+    sig.set("categories", [...SIGNAL_CATEGORIES].join(","));
+    const count = (url: string) =>
+      fetch(url, { signal: ctrl.signal, cache: "no-store" })
+        .then((r) => r.json() as Promise<{ totalCount?: number }>)
+        .then((j) => j.totalCount ?? 0);
+    Promise.all([
+      count(`/api/monitor/items?${one}`),
+      count(`/api/monitor/items?${sig}`),
+      fetch(`/api/chat/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, topItems: 1 }),
+        signal: ctrl.signal,
+        cache: "no-store",
+      })
+        .then((r) => r.json() as Promise<{ total?: number; items?: unknown[] }>)
+        .then((j) => j.total ?? j.items?.length ?? 0),
+    ])
+      .then(([inbox, signals, content]) => {
+        setInboxTotal(inbox);
+        setSignalTotal(signals);
+        setContentTotal(content);
+      })
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, [committed]);
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -228,7 +267,9 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && commit()}
-            placeholder={tab === "content" ? "搜正文，如「Suno 有哪些模型」「视频生成」…" : "搜索标题、摘要、关键词…"}
+            placeholder={tab === "content"
+              ? (en ? "Search article text, e.g. \"Suno models\" or \"video generation\"…" : "搜正文，如「Suno 有哪些模型」「视频生成」…")
+              : (en ? "Search titles, summaries, keywords…" : "搜索标题、摘要、关键词…")}
             className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-24 text-sm shadow-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
           />
           <button
@@ -237,7 +278,7 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
             className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl px-4 py-1.5 text-sm font-medium text-white transition"
             style={{ backgroundColor: "var(--brand)" }}
           >
-            搜索
+            {en ? "Search" : "搜索"}
           </button>
         </div>
 
@@ -245,7 +286,11 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
         {committed && (
           <div className="mb-4 flex gap-1 border-b border-slate-200">
             {(["content", "inbox", "signals"] as Tab[]).map((t) => {
-              const label = t === "content" ? "正文检索" : t === "inbox" ? "收件箱" : "信号雷达";
+              const label = t === "content"
+                ? (en ? "Full text" : "正文检索")
+                : t === "inbox"
+                  ? (en ? "News Feed" : "动态资讯")
+                  : (en ? "Signals" : "信号雷达");
               const count = t === "content" ? contentTotal : t === "inbox" ? inboxTotal : signalTotal;
               return (
                 <button
@@ -271,31 +316,37 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
         {!committed ? (
           <div className="mt-16 text-center text-sm text-slate-400">
             <Search className="mx-auto mb-3 h-8 w-8 text-slate-300" aria-hidden />
-            <p>输入关键词后按 Enter 或点击「搜索」</p>
-            <p className="mt-1 text-xs">「正文检索」直接搜文章正文并高亮命中段落；也可按标题/摘要搜</p>
+            <p>{en ? "Type a keyword and press Enter or click Search" : "输入关键词后按 Enter 或点击「搜索」"}</p>
+            <p className="mt-1 text-xs">{en ? "Full text searches article bodies and highlights the matching paragraphs; the other tabs search titles and summaries" : "「正文检索」直接搜文章正文并高亮命中段落；也可按标题/摘要搜"}</p>
             <div className="mt-6 flex justify-center gap-3">
-              <Link href="/inbox" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50">→ 收件箱</Link>
-              <Link href="/signals" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50">→ 信号雷达</Link>
+              <Link href="/inbox" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50">{en ? "→ News Feed" : "→ 动态资讯"}</Link>
+              <Link href="/signals" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 hover:bg-slate-50">{en ? "→ Signals" : "→ 信号雷达"}</Link>
             </div>
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center py-16 text-sm text-slate-400">
-            <LoaderCircle className="mr-2 inline h-4 w-4 animate-spin" aria-hidden /> 搜索中…
+            <LoaderCircle className="mr-2 inline h-4 w-4 animate-spin" aria-hidden /> {en ? "Searching…" : "搜索中…"}
           </div>
         ) : resultCount === 0 ? (
           <div className="mt-10 text-center text-sm text-slate-400">
             <CircleHelp className="mx-auto mb-2 h-7 w-7 text-slate-300" aria-hidden />
-            <p>未找到与「{committed}」相关的内容</p>
+            <p>{en ? `Nothing found for "${committed}"` : `未找到与「${committed}」相关的内容`}</p>
             <p className="mt-1 text-xs">
-              {tab === "content" ? "正文检索更适合具体的工具/主题词，试试换更短的关键词或切换标签页" : "尝试更换关键词或切换标签页"}
+              {tab === "content"
+                ? (en ? "Full text works best with a specific tool or topic — try a shorter keyword or another tab" : "正文检索更适合具体的工具/主题词，试试换更短的关键词或切换标签页")
+                : (en ? "Try another keyword or tab" : "尝试更换关键词或切换标签页")}
             </p>
           </div>
         ) : (
           <>
             <p className="mb-3 text-xs text-slate-500">
               {tab === "content"
-                ? `匹配到 ${total} 篇正文，显示最相关 ${Math.min(contentItems.length, CONTENT_LIMIT)} 篇`
-                : `共 ${total} 条结果，显示第 ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} 条`}
+                ? (en
+                    ? `${total} articles match; showing the top ${Math.min(contentItems.length, CONTENT_LIMIT)}`
+                    : `匹配到 ${total} 篇正文，显示最相关 ${Math.min(contentItems.length, CONTENT_LIMIT)} 篇`)
+                : (en
+                    ? `${total} results, showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)}`
+                    : `共 ${total} 条结果，显示第 ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} 条`)}
             </p>
             <div className="space-y-3">
               {tab === "content"
@@ -316,7 +367,7 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
                   onClick={() => setPage((p) => p - 1)}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 disabled:opacity-40 hover:bg-slate-50"
                 >
-                  ← 上页
+                  {en ? "← Prev" : "← 上页"}
                 </button>
                 <span className="text-slate-500">{page} / {totalPages}</span>
                 <button
@@ -325,7 +376,7 @@ export function SearchClient({ initialQ }: { initialQ: string }) {
                   onClick={() => setPage((p) => p + 1)}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-slate-600 disabled:opacity-40 hover:bg-slate-50"
                 >
-                  下页 →
+                  {en ? "Next →" : "下页 →"}
                 </button>
               </div>
             )}

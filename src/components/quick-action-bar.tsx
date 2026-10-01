@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
+import { useT } from "@/lib/i18n";
+import { usePrefs } from "@/contexts/prefs-context";
 import {
   ClipboardList, FileText, NotebookPen, Tag,
 } from "lucide-react";
@@ -46,6 +48,7 @@ export function QuickActionBar({
   onCompareClick,
   isInCompare = false,
 }: QuickActionBarProps) {
+  const t = useT(usePrefs().language);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,10 +86,10 @@ export function QuickActionBar({
           }),
         });
         await res.json();
-        showToast(next ? "已加入收藏" : "已取消收藏");
+        showToast(next ? t("qa.starred") : t("qa.unstarred"));
       } catch {
         setIsStarred(prev);
-        showToast("操作失败，请稍后重试");
+        showToast(t("qa.failed"));
       }
     });
   }
@@ -107,10 +110,10 @@ export function QuickActionBar({
           }),
         });
         await res.json();
-        showToast(next ? "已标记为已读" : "已标记为未读");
+        showToast(next ? t("qa.read") : t("qa.unread"));
       } catch {
         setIsRead(prev);
-        showToast("操作失败，请稍后重试");
+        showToast(t("qa.failed"));
       }
     });
   }
@@ -130,7 +133,7 @@ export function QuickActionBar({
 
   function handleNoteSave() {
     setNoteStorage(sourceId, url, title, note);
-    showToast(note ? "备注已保存" : "备注已清除");
+    showToast(note ? t("qa.note-saved") : t("qa.note-cleared"));
     setShowNoteEditor(false);
   }
 
@@ -153,7 +156,7 @@ export function QuickActionBar({
     const next = !localInCompare;
     setLocalInCompare(next);
     onCompareClick?.();
-    showToast(next ? "已加入对比" : "已移出对比");
+    showToast(next ? t("qa.compare-on") : t("qa.compare-off"));
   }
 
   async function handleShare() {
@@ -161,8 +164,8 @@ export function QuickActionBar({
       title: title,
       text: `${departmentName}发布：${title}`,
       url: url,
-      onCopySuccess: () => showToast("链接已复制到剪贴板"),
-      onCopyError: () => showToast("复制失败，请手动复制链接"),
+      onCopySuccess: () => showToast(t("qa.link-copied")),
+      onCopyError: () => showToast(t("qa.copy-failed")),
     });
     if (result === "share") {
       // 原生分享成功，无需额外提示
@@ -191,7 +194,7 @@ export function QuickActionBar({
     lines.push("");
     lines.push("---");
     lines.push("");
-    lines.push("## 政策原文");
+    lines.push("## 原文");
     lines.push("");
     if (paragraphs && paragraphs.length > 0) {
       for (const p of paragraphs) {
@@ -288,8 +291,8 @@ export function QuickActionBar({
   async function handleCopyFullText() {
     const text = buildPlainText();
     await copyToClipboard(text, {
-      onSuccess: () => showToast("已复制全文"),
-      onError: () => showToast("复制失败"),
+      onSuccess: () => showToast(t("qa.text-copied")),
+      onError: () => showToast(t("qa.copy-failed-short")),
     });
     setShowExportMenu(false);
   }
@@ -311,7 +314,7 @@ export function QuickActionBar({
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(urlObj), 5000);
-    showToast("已开始导出 Word");
+    showToast(t("qa.word-started"));
     setShowExportMenu(false);
   }
 
@@ -330,13 +333,13 @@ export function QuickActionBar({
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(urlObj), 5000);
-    showToast("笔记模板已导出");
+    showToast(t("qa.template-done"));
     setShowExportMenu(false);
   }
 
   return (
     <div className="sticky top-4 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm backdrop-blur-md">
-      <button
+      <button data-owner-only
         type="button"
         onClick={handleStarred}
         disabled={isPending}
@@ -347,7 +350,7 @@ export function QuickActionBar({
         }`}
       >
         <span>{isStarred ? "★" : "☆"}</span>
-        <span className="hidden sm:inline">{isStarred ? "已收藏" : "收藏"}</span>
+        <span className="hidden sm:inline">{isStarred ? t("qa.btn.starred") : t("qa.btn.star")}</span>
       </button>
 
       <button
@@ -360,7 +363,7 @@ export function QuickActionBar({
         }`}
       >
         <span>⇄</span>
-        <span className="hidden sm:inline">{localInCompare ? "对比中" : "加入对比"}</span>
+        <span className="hidden sm:inline">{localInCompare ? t("qa.btn.comparing") : t("inbox.item.compare")}</span>
       </button>
 
       {localInCompare && (
@@ -369,11 +372,11 @@ export function QuickActionBar({
           className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-violet-600 px-3 text-sm font-medium text-white transition hover:bg-violet-700"
         >
           <span>→</span>
-          <span className="hidden sm:inline">去对比</span>
+          <span className="hidden sm:inline">{t("qa.btn.go-compare")}</span>
         </a>
       )}
 
-      <button
+      <button data-owner-only
         type="button"
         onClick={handleRead}
         disabled={isPending}
@@ -384,7 +387,7 @@ export function QuickActionBar({
         }`}
       >
         <span>✓</span>
-        <span className="hidden sm:inline">{isRead ? "已读" : "标已读"}</span>
+        <span className="hidden sm:inline">{isRead ? t("qa.btn.read") : t("qa.btn.mark-read")}</span>
       </button>
 
       <button
@@ -393,7 +396,7 @@ export function QuickActionBar({
         className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
       >
         <span>↗</span>
-        <span className="hidden sm:inline">分享</span>
+        <span className="hidden sm:inline">{t("inbox.x.share")}</span>
       </button>
 
       {/* 跟进状态 */}
@@ -409,7 +412,7 @@ export function QuickActionBar({
         >
           {followUpStatus !== "none" ? <StatusIcon status={followUpStatus} className="h-4 w-4" /> : <Tag className="h-4 w-4" aria-hidden />}
           <span className="hidden sm:inline">
-            {followUpStatus !== "none" ? FOLLOW_UP_STATUS_LABELS[followUpStatus] : "跟进"}
+            {followUpStatus !== "none" ? FOLLOW_UP_STATUS_LABELS[followUpStatus] : t("qa.btn.follow-up")}
           </span>
           <span className="text-[10px]">▾</span>
         </button>
@@ -447,7 +450,7 @@ export function QuickActionBar({
         }`}
       >
         <NotebookPen className="h-4 w-4" aria-hidden />
-        <span className="hidden sm:inline">{note ? "已写备注" : "备注"}</span>
+        <span className="hidden sm:inline">{note ? t("qa.btn.has-note") : t("inbox.item.note")}</span>
       </button>
 
       <div className="relative">
@@ -457,7 +460,7 @@ export function QuickActionBar({
           className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
         >
           <span>↓</span>
-          <span className="hidden sm:inline">导出</span>
+          <span className="hidden sm:inline">{t("qa.btn.export")}</span>
           <span className="text-[10px]">▾</span>
         </button>
 
@@ -469,7 +472,7 @@ export function QuickActionBar({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
             >
               <ClipboardList className="h-4 w-4" aria-hidden />
-              <span>复制全文</span>
+              <span>{t("qa.menu.copy-text")}</span>
             </button>
             <button
               type="button"
@@ -477,7 +480,7 @@ export function QuickActionBar({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
             >
               <FileText className="h-4 w-4" aria-hidden />
-              <span>导出 Word</span>
+              <span>{t("qa.menu.word")}</span>
             </button>
             <div className="mx-2 my-1 h-px bg-slate-100" />
             <button
@@ -486,30 +489,25 @@ export function QuickActionBar({
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
             >
               <NotebookPen className="h-4 w-4" aria-hidden />
-              <span>导出笔记模板</span>
+              <span>{t("qa.menu.template")}</span>
             </button>
           </div>
         )}
       </div>
 
-      <div className="ml-auto flex items-center gap-1.5">
-        <span className="hidden text-xs text-slate-400 sm:inline">
-          {sourceId.slice(0, 20)}
-        </span>
-      </div>
 
       {/* 备注编辑器 */}
       {showNoteEditor && (
         <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
           <div className="mb-2 flex items-center justify-between">
-            <div className="text-sm font-medium text-slate-700">个人备注</div>
-            <div className="text-xs text-slate-400">仅保存在本地</div>
+            <div className="text-sm font-medium text-slate-700">{t("detail.research.note")}</div>
+            <div className="text-xs text-slate-400">{t("qa.local-only")}</div>
           </div>
           <textarea
             ref={noteTextareaRef}
             value={note}
             onChange={(e) => handleNoteChange(e.target.value)}
-            placeholder="记录你的想法、重点、行动事项..."
+            placeholder={t("detail.research.note-ph")}
             className="h-28 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:outline-none"
           />
           <div className="mt-2 flex items-center justify-end gap-2">

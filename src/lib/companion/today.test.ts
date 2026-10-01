@@ -76,13 +76,20 @@ describe("Today · Ranked for you", () => {
 });
 
 describe("Today · 计数", () => {
-  it("未读数与重点数分别统计；中等重点不计入重点", () => {
+  const now = new Date("2026-09-25T12:00:00.000Z");
+  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3600 * 1000).toISOString();
+
+  it("只数近 24 小时新增；重点=核心关注+重点内容，中等重点不算", () => {
     const items = [
-      makeItem({ url: "a", isRead: false, importanceLevel: "核心关注" }),
-      makeItem({ url: "b", isRead: true, importanceLevel: "重点内容" }),
-      makeItem({ url: "c", isRead: false, importanceLevel: "中等重点" }),
-      makeItem({ url: "d", isRead: false, importanceLevel: "普通内容" }),
+      makeItem({ url: "a", firstSeenAt: hoursAgo(1), importanceLevel: "核心关注" }),
+      makeItem({ url: "b", firstSeenAt: hoursAgo(5), importanceLevel: "重点内容" }),
+      makeItem({ url: "c", firstSeenAt: hoursAgo(23), importanceLevel: "中等重点" }),
+      makeItem({ url: "d", firstSeenAt: hoursAgo(30), importanceLevel: "重点内容" }),
     ];
-    expect(summarize(items)).toEqual({ unread: 3, key: 2 });
+    expect(summarize(items, now)).toEqual({ fresh: 3, key: 2 });
+  });
+
+  it("缺 firstSeenAt 的条目不计入", () => {
+    expect(summarize([makeItem({ url: "x", firstSeenAt: undefined as unknown as string })], now)).toEqual({ fresh: 0, key: 0 });
   });
 });

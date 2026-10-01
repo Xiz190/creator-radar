@@ -18,6 +18,8 @@ const MONTHS: Record<string, number> = {
   Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
 };
 
+const CARD_SPAN = 6000;
+
 function normalizeDate(block: string): string | null {
   // 1) <time datetime="2026-07-07T..."> 最可靠
   let m = block.match(/datetime="(\d{4})-(\d{2})-(\d{2})/);
@@ -89,9 +91,11 @@ export async function fetchHtmlCards(listUrl: string, limit: number): Promise<Mo
     if (seen.has(path)) continue;
     seen.add(path);
 
-    // 卡片块：从链接前一点到下一个文章链接（或 +1400 上限）
-    const nextPos = i + 1 < hits.length ? hits[i + 1].pos : pos + 1400;
-    const block = html.slice(Math.max(0, pos - 250), Math.min(nextPos, pos + 1400));
+    // 卡片块：从链接前 250 字符（有的站标题写在链接之前，如 ElevenLabs）到下一个文章链接，
+    // 最多往后看 CARD_SPAN 个字符。上限原为 1400：2026-09 Pika 改版后，卡片开头的 <img srcSet>
+    // 就有一千多字符，标题和日期被挤到 1400 之外，整个来源连续一个月扫描为 0。
+    const nextPos = i + 1 < hits.length ? hits[i + 1].pos : pos + CARD_SPAN;
+    const block = html.slice(Math.max(0, pos - 250), Math.min(nextPos, pos + CARD_SPAN));
 
     // 标题回退：h标签 → 链接文字 → img alt
     let title = "";

@@ -57,7 +57,7 @@ export default function CompanionTodayPage() {
     // 若带 sort=published_at，服务器会先按发布时间截出"最近 4 条"再交给 pickRanked 重排，
     // 稍旧但更重要的条目就永远进不了列表。别"好心"把 sort=published_at 加回来。
     const rankedReq = fetchJson("/api/monitor/items?view=list&limit=4&hasLens=1");
-    const statReq = fetchJson("/api/monitor/items?view=list&limit=60&sort=published_at");
+    const statReq = fetchJson("/api/monitor/items?view=list&limit=200&sort=first_seen_at");
 
     Promise.all([rankedReq, statReq])
       .then(([rankedData, statData]) => {
@@ -102,8 +102,8 @@ export default function CompanionTodayPage() {
         ) : (
           <>
             <div className="mt-[22px] font-mono text-[13.5px] text-slate-700">
-              <b className="font-semibold text-slate-900">{stat.unread}</b> unread ·{" "}
-              <b className="font-semibold text-slate-900">{stat.key}</b> key today
+              <b className="font-semibold text-slate-900">{stat.fresh}</b> new ·{" "}
+              <b className="font-semibold text-slate-900">{stat.key}</b> key in the last 24h
             </div>
 
             <div className="mb-2 mt-[26px] text-[12px] font-bold text-slate-900">

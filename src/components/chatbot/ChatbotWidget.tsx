@@ -7,6 +7,7 @@ import {
 import { ChatEngine, SearchResult, SignalAnalysisResult } from "@/lib/chatbot/chat-engine";
 import { parseFile, ParsedResult } from "@/lib/chatbot/file-parser";
 import { usePrefs } from "@/contexts/prefs-context";
+import { useT } from "@/lib/i18n";
 import { usePathname } from "next/navigation";
 import { isCompanionPath } from "@/lib/companion/nav";
 
@@ -58,10 +59,10 @@ interface Conversation {
 
 type SizeMode = "small" | "medium" | "large";
 
-const SIZE_PRESETS: Record<SizeMode, { width: number; height: number; label: string }> = {
-  small: { width: 360, height: 520, label: "小" },
-  medium: { width: 460, height: 680, label: "中" },
-  large: { width: 820, height: 760, label: "大" },
+const SIZE_PRESETS: Record<SizeMode, { width: number; height: number; label: string; labelEn: string }> = {
+  small: { width: 360, height: 520, label: "小", labelEn: "S" },
+  medium: { width: 460, height: 680, label: "中", labelEn: "M" },
+  large: { width: 820, height: 760, label: "大", labelEn: "L" },
 };
 
 const STORAGE_KEY = "creator-radar-chatbot-state-v1";
@@ -76,6 +77,25 @@ const SUGGESTED_QUESTIONS = [
   "发行平台或版权有什么新动态？",
   "海外市场有什么新机会？",
 ];
+
+const SUGGESTED_QUESTIONS_EN = [
+  "Any recent music open calls or contests?",
+  "What's new in AI music tools?",
+  "Any gigs or festival calls open?",
+  "Anything new on distribution or copyright?",
+  "New opportunities in overseas markets?",
+];
+
+const WELCOME_EN =
+  "Hi! I'm Ask Radar, your Creator Radar assistant.\n\nI can:\n• Search music opportunities and industry news on this site\n• Read PDF / Word / image files you upload\n• Spot opportunity signals (funding / open calls / gigs / copyright)\n• Give you a structured breakdown\n\nAsk a question or upload a file to get started.";
+
+// 欢迎语与默认对话标题是存在浏览器里的（存的是中文），显示时按当前语言替换，不改存储
+function displayTitle(title: string, en: boolean): string {
+  if (!en) return title;
+  if (title === "新对话") return "New chat";
+  const m = title.match(/^对话 (\d+)$/);
+  return m ? `Chat ${m[1]}` : title;
+}
 
 // ============ 状态持久化 ============
 interface PersistedState {
@@ -154,6 +174,8 @@ function formatTitleFromFirstMessage(content: string): string {
 
 export function ChatbotWidget() {
   const { language } = usePrefs();
+  const T = useT(language);
+  const en = language === "en";
   const [isOpen, setIsOpen] = useState(false);
   const loadedState = useMemo(() => loadState(), []);
   const [conversations, setConversations] = useState<Conversation[]>(loadedState.conversations);
@@ -232,7 +254,7 @@ export function ChatbotWidget() {
   }
 
   function handleClearAll() {
-    if (!confirm("确定要清空所有对话历史吗？此操作不可撤销。")) return;
+    if (!confirm(en ? "Clear all chat history? This can't be undone." : "确定要清空所有对话历史吗？此操作不可撤销。")) return;
     const newConv = createConversation(1);
     setConversations([newConv]);
     setActiveConversationId(newConv.id);
@@ -272,14 +294,18 @@ export function ChatbotWidget() {
       if (result.items.length === 0) {
         addMessage({
           role: "assistant",
-          content: ` 我在数据库中搜索了「${text}」，但暂时没有找到完全匹配的音乐动态。\n\n建议：\n• 试试更简单的关键词，如「Suno」「比赛」「征集」\n• 查看下方快捷提问按钮\n• 或者上传 PDF/Word 文件让我分析`,
+          content: en
+            ? `I searched for "${text}" but found no closely matching items.\n\nTry:\n• A simpler keyword, like "Suno", "contest" or "open call"\n• The suggested questions below\n• Or upload a PDF / Word file for me to read`
+            : ` 我在数据库中搜索了「${text}」，但暂时没有找到完全匹配的音乐动态。\n\n建议：\n• 试试更简单的关键词，如「Suno」「比赛」「征集」\n• 查看下方快捷提问按钮\n• 或者上传 PDF/Word 文件让我分析`,
           type: "text",
         });
       } else {
         // 先展示"找到 N 条"的文档卡片（用户可以立即看到原文线索）
         addMessage({
           role: "assistant",
-          content: ` 已找到 ${result.items.length} 条与「${text}」相关的音乐机会与动态，以下是最相关的文档：`,
+          content: en
+            ? `Found ${result.items.length} items related to "${text}". Most relevant first:`
+            : ` 已找到 ${result.items.length} 条与「${text}」相关的音乐机会与动态，以下是最相关的文档：`,
           type: "results",
           data: result,
         });
@@ -289,9 +315,9 @@ export function ChatbotWidget() {
 
         const tag =
           answer.source === "llm"
-            ? " 由大模型基于检索结果生成"
-            : " 规则引擎（未配置 LLM 或调用失败）";
-        const hint = answer.error ? `\n 备注：${answer.error}` : "";
+            ? (en ? "Written by the LLM from the search results" : " 由大模型基于检索结果生成")
+            : (en ? "Rule-based answer (LLM not configured or unavailable)" : " 规则引擎（未配置 LLM 或调用失败）");
+        const hint = answer.error ? (en ? `\nNote: ${answer.error}` : `\n 备注：${answer.error}`) : "";
 
         addMessage({
           role: "assistant",
@@ -302,7 +328,9 @@ export function ChatbotWidget() {
     } catch (error) {
       addMessage({
         role: "assistant",
-        content: ` 抱歉，搜索出错了：${(error as Error).message}\n\n请稍后再试。`,
+        content: en
+          ? `Sorry, the search failed: ${(error as Error).message}\n\nPlease try again later.`
+          : ` 抱歉，搜索出错了：${(error as Error).message}\n\n请稍后再试。`,
         type: "text",
       });
     } finally {
@@ -320,8 +348,9 @@ export function ChatbotWidget() {
 
       // 提前检测旧格式文件
       if (file.name.toLowerCase().endsWith(".doc")) {
-        const proceed = window.confirm(
-          ` 文件 "${file.name}" 是旧式 Word 格式 (.doc)。\n\n` +
+        const proceed = window.confirm(en
+          ? `"${file.name}" is an old Word format (.doc).\n\nOnly .docx is supported.\n\nTo convert:\n  1) In Word/WPS, Save As → .docx\n  2) Or convert it in Google Docs\n\nUpload it anyway to see the full message?`
+          : ` 文件 "${file.name}" 是旧式 Word 格式 (.doc)。\n\n` +
           `当前仅支持现代 Word 格式 (.docx)。\n\n` +
           `建议转换方法：\n` +
           `  1) 在 Word/WPS 中「另存为」→ 选择 .docx\n` +
@@ -333,7 +362,7 @@ export function ChatbotWidget() {
 
       addMessage({
         role: "user",
-        content: ` 上传文件：${file.name} (${formatFileSize(file.size)})`,
+        content: en ? `Uploaded: ${file.name} (${formatFileSize(file.size)})` : ` 上传文件：${file.name} (${formatFileSize(file.size)})`,
         type: "text",
       });
       setIsLoading(true);
@@ -342,7 +371,7 @@ export function ChatbotWidget() {
         const result = await parseFile(file);
         addMessage({
           role: "assistant",
-          content: generateFileResult(file, result),
+          content: generateFileResult(file, result, en),
           type: "parsed",
           data: result,
         });
@@ -352,7 +381,7 @@ export function ChatbotWidget() {
           if (analysis.hasAnySignal) {
             addMessage({
               role: "assistant",
-              content: generateAnalysisResponse(file.name, analysis),
+              content: generateAnalysisResponse(file.name, analysis, en),
               type: "analysis",
               data: analysis,
             });
@@ -361,7 +390,7 @@ export function ChatbotWidget() {
       } catch (error) {
         addMessage({
           role: "assistant",
-          content: ` 文件解析失败：${(error as Error).message}`,
+          content: en ? `Couldn't read the file: ${(error as Error).message}` : ` 文件解析失败：${(error as Error).message}`,
           type: "text",
         });
       } finally {
@@ -428,12 +457,23 @@ export function ChatbotWidget() {
   }
 
   const { width, height } = SIZE_PRESETS[sizeMode];
-  const currentSizeLabel = SIZE_PRESETS[sizeMode].label;
+  const currentSizeLabel = en ? SIZE_PRESETS[sizeMode].labelEn : SIZE_PRESETS[sizeMode].label;
 
   // 动态样式：根据是否被拖动过位置决定定位方式
+  // 三档尺寸是上限，不是硬尺寸：窗口不能比可视区域大。
+  // 之前写死像素，「中」460×680、「大」820×760 在笔记本浏览器（可视高度常不到 760）里顶部伸出屏幕，
+  // 标题栏和按钮都看不到；手机上「中」左边伸出 92px。拖动过的位置也夹在屏幕内，免得拖出去找不回来。
+  const boxW = `min(${width}px, calc(100vw - 2rem))`;
+  const boxH = `min(${height}px, calc(100dvh - 3rem))`;
   const chatContainerStyle: React.CSSProperties = position
-    ? { position: "fixed", left: `${position.left}px`, top: `${position.top}px`, width: `${width}px`, height: `${height}px` }
-    : { width: `${width}px`, height: `${height}px` };
+    ? {
+        position: "fixed",
+        left: `clamp(0.5rem, ${position.left}px, calc(100vw - ${boxW} - 0.5rem))`,
+        top: `clamp(0.5rem, ${position.top}px, calc(100dvh - ${boxH} - 0.5rem))`,
+        width: boxW,
+        height: boxH,
+      }
+    : { width: boxW, height: boxH };
 
   const pathname = usePathname();
   // 伴侣版不显示聊天浮窗
@@ -444,12 +484,12 @@ export function ChatbotWidget() {
       {/* 浮动按钮（右下角） */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-amber-500/25 transition hover:shadow-xl hover:shadow-amber-500/40 hover:-translate-y-0.5 sm:bottom-6 ${
+        className={`hide-when-zoomed fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-[var(--brand)] px-4 py-2.5 text-sm font-medium text-white shadow-lg transition hover:bg-[var(--brand-700)] sm:bottom-6 ${
           isOpen ? "opacity-0 pointer-events-none" : ""
         }`}
       >
         <MessageCircle className="h-4 w-4" />
-        <span>创作者雷达助手</span>
+        <span>{T("chat.name")}</span>
       </button>
 
       {/* 底部占位：防止页面内容被浮动按钮遮挡 */}
@@ -458,36 +498,36 @@ export function ChatbotWidget() {
       {/* 聊天窗口 - 支持拖动移动 */}
       {isOpen ? (
         <div
-          className={`chatbot-container ${position ? "" : "fixed bottom-6 right-6"} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ${isDragging ? "cursor-grabbing" : ""}`}
+          className={`chatbot-container ${position ? "" : "fixed bottom-4 right-4 sm:bottom-6 sm:right-6"} z-50 flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl ${isDragging ? "cursor-grabbing" : ""}`}
           style={chatContainerStyle}
         >
           {/* 头部（可拖动移动 + 对话管理） */}
           <div
             onMouseDown={handleDragStart}
-            className="flex cursor-grab items-center justify-between bg-gradient-to-br from-amber-500 to-orange-600 px-4 py-2.5 text-white active:cursor-grabbing"
+            className="flex cursor-grab items-center justify-between bg-[var(--brand)] px-4 py-2.5 text-white active:cursor-grabbing"
           >
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-lg">
                 <Bot className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-semibold truncate">{activeConv?.title || "创作者雷达助手"}</div>
-                <div className="text-xs text-amber-50">{conversations.length} 条对话 · 拖动头部移动</div>
+                <div className="text-sm font-semibold truncate">{activeConv?.title ? displayTitle(activeConv.title, en) : T("chat.name")}</div>
+                <div className="text-xs text-white/75">{en ? `${conversations.length} ${conversations.length === 1 ? "chat" : "chats"} · drag the header to move` : `${conversations.length} 条对话 · 拖动头部移动`}</div>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               {/* 对话列表切换按钮 */}
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                title="查看/管理对话历史"
-                className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition ${showSidebar ? "bg-white text-amber-600" : "bg-white/20 hover:bg-white/30"}`}
+                title={en ? "View / manage chat history" : "查看/管理对话历史"}
+                className={`rounded-full px-2.5 py-1.5 text-xs font-medium transition ${showSidebar ? "bg-white text-[var(--brand)]" : "bg-white/20 hover:bg-white/30"}`}
               >
                 <FolderOpen className="h-3.5 w-3.5" aria-hidden />{conversations.length}
               </button>
               {/* 新建对话 */}
               <button
                 onClick={handleNewConversation}
-                title="新建对话"
+                title={en ? "New chat" : "新建对话"}
                 className="rounded-full bg-white/20 px-2.5 py-1.5 text-xs font-medium transition hover:bg-white/30"
               >
                 ＋
@@ -496,7 +536,7 @@ export function ChatbotWidget() {
               {position ? (
                 <button
                   onClick={handleResetPosition}
-                  title="回到右下角"
+                  title={en ? "Back to the corner" : "回到右下角"}
                   className="rounded-full bg-white/20 px-2 py-1.5 text-xs font-medium transition hover:bg-white/30"
                 >
                   ↺
@@ -505,17 +545,17 @@ export function ChatbotWidget() {
               {/* 大小切换 */}
               <button
                 onClick={cycleSize}
-                title={`当前：${currentSizeLabel} - 点击切换尺寸`}
+                title={en ? `Size: ${currentSizeLabel} — click to change` : `当前：${currentSizeLabel} - 点击切换尺寸`}
                 className="flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1.5 text-xs font-medium transition hover:bg-white/30"
               >
-                <span>尺寸</span>
+                <span>{en ? "Size" : "尺寸"}</span>
                 <span className="font-bold">{currentSizeLabel}</span>
                 <span>⇄</span>
               </button>
               {/* 关闭 */}
               <button
                 onClick={() => setIsOpen(false)}
-                title="关闭（历史会保留）"
+                title={en ? "Close (history is kept)" : "关闭（历史会保留）"}
                 className="rounded-full p-1.5 transition hover:bg-white/20"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -529,34 +569,34 @@ export function ChatbotWidget() {
           {showSidebar ? (
             <div className="border-b border-slate-200 bg-slate-50 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700"><FolderOpen className="h-3.5 w-3.5" aria-hidden />对话历史</div>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700"><FolderOpen className="h-3.5 w-3.5" aria-hidden />{en ? "Chat history" : "对话历史"}</div>
                 <div className="flex gap-1">
                   <button
                     onClick={handleNewConversation}
-                    className="rounded-full bg-amber-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-amber-600"
+                    className="rounded-full bg-[var(--brand)] px-2 py-1 text-xs font-medium text-white transition hover:opacity-90"
                   >
-                    ＋ 新建
+                    {en ? "+ New" : "＋ 新建"}
                   </button>
                   <button
                     onClick={handleClearAll}
                     className="rounded-full border border-rose-300 px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
                   >
-                    <Trash2 className="mr-1 inline h-3.5 w-3.5" aria-hidden />清空全部
+                    <Trash2 className="mr-1 inline h-3.5 w-3.5" aria-hidden />{en ? "Clear all" : "清空全部"}
                   </button>
                 </div>
               </div>
               <div className="max-h-48 space-y-1 overflow-y-auto">
                 {conversations.map((conv) => {
                   const firstUserMsg = conv.messages.find((m) => m.role === "user");
-                  const preview = firstUserMsg ? firstUserMsg.content.slice(0, 30).replace(/\n/g, " ") : conv.title;
+                  const preview = firstUserMsg ? firstUserMsg.content.slice(0, 30).replace(/\n/g, " ") : displayTitle(conv.title, en);
                   return (
                     <div
                       key={conv.id}
                       onClick={() => handleSwitchConversation(conv.id)}
                       className={`group flex cursor-pointer items-start gap-2 rounded-xl p-2 text-left transition ${
                         conv.id === activeConversationId
-                          ? "bg-amber-100 ring-1 ring-amber-300"
-                          : "bg-white hover:bg-amber-50 ring-1 ring-slate-100"
+                          ? "bg-[var(--brand-tint)] ring-1 ring-[var(--brand-border)]"
+                          : "bg-white hover:bg-[var(--brand-tint)] ring-1 ring-slate-100"
                       }`}
                     >
                       <div className="shrink-0 text-base">
@@ -566,10 +606,10 @@ export function ChatbotWidget() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-xs font-semibold text-slate-800">
-                          {conv.title}
+                          {displayTitle(conv.title, en)}
                         </div>
                         <div className="truncate text-xs text-slate-500">
-                          {preview || "空对话"}
+                          {preview || (en ? "Empty chat" : "空对话")}
                         </div>
                         <div className="text-xs text-slate-400">
                           {(() => {
@@ -587,13 +627,13 @@ export function ChatbotWidget() {
                             const min = parts.find((p) => p.type === "minute")?.value ?? "00";
                             return `${m}/${d} ${h}:${min}`;
                           })()}{" "}
-                          · {conv.messages.length} 条
+                          · {en ? `${conv.messages.length} ${conv.messages.length === 1 ? "message" : "messages"}` : `${conv.messages.length} 条`}
                         </div>
                       </div>
                       <button
                         onClick={(e) => handleDeleteConversation(conv.id, e)}
                         className="shrink-0 rounded-full px-2 py-0.5 text-xs text-slate-400 opacity-0 transition hover:bg-rose-100 hover:text-rose-600 group-hover:opacity-100"
-                        title="删除此对话"
+                        title={en ? "Delete this chat" : "删除此对话"}
                       >
                         ✕
                       </button>
@@ -611,11 +651,13 @@ export function ChatbotWidget() {
                 <div
                   className={`inline-block max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                     msg.role === "user"
-                      ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white"
+                      ? "bg-[var(--brand)] text-white"
                       : "border border-slate-200 bg-white text-slate-700"
                   }`}
                 >
-                  <div className="whitespace-pre-wrap text-left">{msg.content}</div>
+                  <div className="whitespace-pre-wrap text-left">
+                    {en && msg.id === WELCOME_MSG_ID ? WELCOME_EN : msg.content}
+                  </div>
                 </div>
 
                 {/* 搜索结果展示 */}
@@ -629,7 +671,7 @@ export function ChatbotWidget() {
                         </div>
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {item.signals?.map((s, i) => (
-                            <span key={i} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                            <span key={i} className="rounded-full bg-[var(--brand-tint)] px-2 py-0.5 text-xs text-[var(--brand)]">
                               {s}
                             </span>
                           ))}
@@ -641,7 +683,7 @@ export function ChatbotWidget() {
                             rel="noopener noreferrer"
                             className="mt-2 inline-block text-xs text-sky-600 hover:underline"
                           >
-                            打开原文 →
+                            {en ? "Open original →" : "打开原文 →"}
                           </a>
                         ) : null}
                       </div>
@@ -652,15 +694,15 @@ export function ChatbotWidget() {
                 {/* 文件解析结果 */}
                 {msg.type === "parsed" && msg.data ? (
                   <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3 text-left text-xs leading-5 text-slate-700">
-                    <div className="flex items-center gap-1.5 font-medium text-emerald-800"><ClipboardList className="h-4 w-4" aria-hidden />文件信息</div>
+                    <div className="flex items-center gap-1.5 font-medium text-emerald-800"><ClipboardList className="h-4 w-4" aria-hidden />{en ? "File info" : "文件信息"}</div>
                     <div className="mt-2 space-y-1">
-                      <div>文件类型：{msg.data.fileType}</div>
-                      <div>提取文字：{msg.data.text?.length || 0} 字</div>
+                      <div>{en ? "Type: " : "文件类型："}{msg.data.fileType}</div>
+                      <div>{en ? `Text extracted: ${msg.data.text?.length || 0} characters` : `提取文字：${msg.data.text?.length || 0} 字`}</div>
                     </div>
                     {msg.data.text?.length > 0 ? (
                       <details className="mt-2">
                         <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-700">
-                          查看提取的文字内容
+                          {en ? "Show extracted text" : "查看提取的文字内容"}
                         </summary>
                         <div className="mt-2 max-h-40 overflow-y-auto rounded-xl bg-white p-2 text-xs leading-5 text-slate-600">
                           {msg.data.text.slice(0, 1000)}
@@ -681,7 +723,7 @@ export function ChatbotWidget() {
                         }}
                         className="mt-2 w-full rounded-full bg-emerald-600 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500"
                       >
-                        <Download className="h-3.5 w-3.5" aria-hidden />导出文字内容
+                        <Download className="h-3.5 w-3.5" aria-hidden />{en ? "Export text" : "导出文字内容"}
                       </button>
                     ) : null}
                   </div>
@@ -690,19 +732,19 @@ export function ChatbotWidget() {
                 {/* 信号分析结果 */}
                 {msg.type === "analysis" && msg.data ? (
                   <div className="mt-3 rounded-2xl border border-violet-200 bg-violet-50/50 p-3 text-left text-xs leading-5 text-slate-700">
-                    <div className="flex items-center gap-1.5 font-medium text-violet-800"><Target className="h-4 w-4" aria-hidden />信号分析结果</div>
+                    <div className="flex items-center gap-1.5 font-medium text-violet-800"><Target className="h-4 w-4" aria-hidden />{en ? "Signal check" : "信号分析结果"}</div>
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       <div className={`rounded-xl p-2 text-center ${msg.data.hasFunding ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                        <Coins className="h-3.5 w-3.5" aria-hidden />资金/资助 {msg.data.hasFunding ? "✓" : "—"}
+                        <Coins className="h-3.5 w-3.5" aria-hidden />{en ? "Funding" : "资金/资助"} {msg.data.hasFunding ? "✓" : "—"}
                       </div>
                       <div className={`rounded-xl p-2 text-center ${msg.data.hasProcurement ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-500"}`}>
-                        <Mailbox className="h-3.5 w-3.5" aria-hidden />征集/投递 {msg.data.hasProcurement ? "✓" : "—"}
+                        <Mailbox className="h-3.5 w-3.5" aria-hidden />{en ? "Open calls" : "征集/投递"} {msg.data.hasProcurement ? "✓" : "—"}
                       </div>
                       <div className={`rounded-xl p-2 text-center ${msg.data.hasPilot ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
-                        <Mic className="h-3.5 w-3.5" aria-hidden />演出/曝光 {msg.data.hasPilot ? "✓" : "—"}
+                        <Mic className="h-3.5 w-3.5" aria-hidden />{en ? "Gigs" : "演出/曝光"} {msg.data.hasPilot ? "✓" : "—"}
                       </div>
                       <div className={`rounded-xl p-2 text-center ${msg.data.hasStandards ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500"}`}>
-                        <Pin className="h-3.5 w-3.5" aria-hidden />平台/版权 {msg.data.hasStandards ? "✓" : "—"}
+                        <Pin className="h-3.5 w-3.5" aria-hidden />{en ? "Copyright" : "平台/版权"} {msg.data.hasStandards ? "✓" : "—"}
                       </div>
                     </div>
                     {msg.data.matchedKeywords?.length > 0 ? (
@@ -722,7 +764,7 @@ export function ChatbotWidget() {
             {isLoading ? (
               <div className="mb-4">
                 <div className="inline-block rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
-                  <span className="inline-block animate-pulse">正在分析...</span>
+                  <span className="inline-block animate-pulse">{en ? "Analyzing…" : "正在分析..."}</span>
                 </div>
               </div>
             ) : null}
@@ -734,11 +776,11 @@ export function ChatbotWidget() {
           {messages.length <= 2 ? (
             <div className="border-t border-slate-200 bg-white px-4 py-2">
               <div className="flex flex-wrap gap-2">
-                {SUGGESTED_QUESTIONS.map((q, idx) => (
+                {(en ? SUGGESTED_QUESTIONS_EN : SUGGESTED_QUESTIONS).map((q, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSuggestion(q)}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700"
+                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 transition hover:border-[var(--brand-border)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)]"
                   >
                     {q}
                   </button>
@@ -761,8 +803,8 @@ export function ChatbotWidget() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
-                className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
-                title="上传文件（PDF/Word/图片）"
+                className="shrink-0 rounded-full border border-slate-200 bg-white p-2 text-slate-600 transition hover:border-[var(--brand-border)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] disabled:opacity-50"
+                title={en ? "Upload a file (PDF / Word / image)" : "上传文件（PDF/Word/图片）"}
               >
                 <Paperclip className="h-4 w-4" aria-hidden />
               </button>
@@ -776,22 +818,22 @@ export function ChatbotWidget() {
                       handleSend();
                     }
                   }}
-                  placeholder="输入你的问题，或上传文件..."
+                  placeholder={en ? "Ask a question, or upload a file…" : "输入你的问题，或上传文件..."}
                   rows={1}
-                  className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:border-[var(--brand-border)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-tint)]"
                   style={{ minHeight: "42px", maxHeight: "120px" }}
                 />
               </div>
               <button
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="shrink-0 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="shrink-0 rounded-full bg-[var(--brand)] px-4 py-2.5 text-sm font-medium text-white shadow-md transition hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                发送
+                {en ? "Send" : "发送"}
               </button>
             </div>
             <div className="mt-2 text-center text-xs text-slate-400">
-              <Lightbulb className="mr-1 inline h-3.5 w-3.5" aria-hidden />对话历史自动保存 · 支持 PDF/Word/图片 · Enter 发送
+              <Lightbulb className="mr-1 inline h-3.5 w-3.5" aria-hidden />{en ? "Chats save automatically · PDF / Word / images · Enter to send" : "对话历史自动保存 · 支持 PDF/Word/图片 · Enter 发送"}
             </div>
           </div>
         </div>
@@ -808,8 +850,24 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-function generateFileResult(file: File, result: ParsedResult): string {
+function generateFileResult(file: File, result: ParsedResult, en = false): string {
   const lines: string[] = [];
+  if (en) {
+    lines.push("File read.", "");
+    lines.push(`Name: ${file.name}`);
+    lines.push(`Type: ${result.fileType}`);
+    if (result.pageCount) lines.push(`Pages: ${result.pageCount}`);
+    if (result.imageCount) lines.push(`Images: ${result.imageCount}`);
+    if (result.text) lines.push(`Text extracted: ${result.text.length} characters`);
+    lines.push("");
+    if (result.text && result.text.length > 0) {
+      lines.push("Opportunity signals are detected automatically — see the results below.");
+      lines.push("Use \"Export text\" to save it as a .txt file.");
+    } else {
+      lines.push("No text could be extracted from this file.");
+    }
+    return lines.join("\n");
+  }
   lines.push(` 文件解析完成！`);
   lines.push("");
   lines.push(` 文件名：${file.name}`);
@@ -827,8 +885,24 @@ function generateFileResult(file: File, result: ParsedResult): string {
   return lines.join("\n");
 }
 
-function generateAnalysisResponse(fileName: string, analysis: SignalAnalysisResult): string {
+function generateAnalysisResponse(fileName: string, analysis: SignalAnalysisResult, en = false): string {
   const lines: string[] = [];
+  if (en) {
+    lines.push(`Signal check done: ${fileName}`, "");
+    if (analysis.hasAnySignal) {
+      lines.push("Opportunity signals found:");
+      if (analysis.hasFunding) lines.push("• Funding / grants: mentions of grants, prizes or funds");
+      if (analysis.hasProcurement) lines.push("• Open calls: mentions of calls, recruiting or submissions");
+      if (analysis.hasPilot) lines.push("• Gigs / exposure: mentions of shows, tours or festivals");
+      if (analysis.hasStandards) lines.push("• Platforms / copyright: mentions of copyright, revenue share or platform rules");
+      lines.push("");
+      lines.push("Matched keywords: " + (analysis.matchedKeywords?.slice(0, 10).join(", ") || "—"));
+    } else {
+      lines.push("No clear opportunity signals.");
+      lines.push("It may be a general document, or it doesn't mention creative opportunities.");
+    }
+    return lines.join("\n");
+  }
   lines.push(` 信号分析完成：${fileName}`);
   lines.push("");
   if (analysis.summary) lines.push(` ${analysis.summary}`);

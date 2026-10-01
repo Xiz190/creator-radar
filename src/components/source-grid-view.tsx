@@ -1,6 +1,8 @@
 "use client";
 
 import type { SourceTreeNode } from "@/hooks/use-item-list";
+import { usePrefs } from "@/contexts/prefs-context";
+import { pickSourceName } from "@/lib/localized-fields";
 
 type SourceGridViewProps = {
   sourcesTree: SourceTreeNode[];
@@ -8,10 +10,12 @@ type SourceGridViewProps = {
 };
 
 export function SourceGridView({ sourcesTree, onSelectDepartment }: SourceGridViewProps) {
+  const { language } = usePrefs();
+  const en = language === "en";
   if (sourcesTree.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-        暂无部委数据
+        {en ? "No sources yet" : "暂无来源数据"}
       </div>
     );
   }
@@ -27,17 +31,17 @@ export function SourceGridView({ sourcesTree, onSelectDepartment }: SourceGridVi
         >
           <div className="flex w-full items-center justify-between">
             <span className="text-sm font-semibold text-slate-900">
-              {dept.displayName || dept.departmentName}
+              {pickSourceName(dept, language) || dept.departmentName}
             </span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-              {dept.totalCount} 条
+              {en ? `${dept.totalCount} items` : `${dept.totalCount} 条`}
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span>{dept.channels.length} 个栏目</span>
+            <span>{en ? `${dept.channels.length} channels` : `${dept.channels.length} 个栏目`}</span>
             {dept.unread > 0 ? (
               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">
-                {dept.unread} 未读
+                {en ? `${dept.unread} unread` : `${dept.unread} 未读`}
               </span>
             ) : null}
           </div>
@@ -55,7 +59,7 @@ export function SourceGridView({ sourcesTree, onSelectDepartment }: SourceGridVi
             ) : null}
           </div>
           <div className="mt-2 text-xs text-sky-700 opacity-0 transition group-hover:opacity-100">
-            查看政策 →
+            {en ? "View items →" : "查看动态 →"}
           </div>
         </button>
       ))}

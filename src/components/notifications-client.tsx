@@ -12,36 +12,86 @@ import {
 } from "@/lib/notifications";
 import { SubscriptionBadgeList } from "@/components/subscription-badge";
 import { setFollowUpStatus } from "@/lib/personal-research";
+import { LocalDataNotice } from "@/components/local-data-notice";
+import { LOCAL_DATA_NOTICE } from "@/lib/local-data-notice";
+import { usePrefs } from "@/contexts/prefs-context";
 import {
   Bell, BookOpen, Mailbox, RadioTower, Star,
 } from "lucide-react";
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, en: boolean): string {
   if (!iso) return "";
   const d = new Date(iso);
   const month = d.getMonth() + 1;
   const day = d.getDate();
   const hours = d.getHours().toString().padStart(2, "0");
   const mins = d.getMinutes().toString().padStart(2, "0");
+  if (en) {
+    return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${hours}:${mins}`;
+  }
   return `${month}月${day}日 ${hours}:${mins}`;
 }
 
-function formatRelativeTime(iso: string): string {
+function formatRelativeTime(iso: string, en: boolean): string {
   const now = Date.now();
   const time = new Date(iso).getTime();
   const diff = now - time;
 
-  if (diff < 60 * 1000) return "刚刚";
-  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))} 分钟前`;
-  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))} 小时前`;
-  if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / (24 * 60 * 60 * 1000))} 天前`;
-  return formatDate(iso);
+  const mins = Math.floor(diff / (60 * 1000));
+  const hours = Math.floor(diff / (60 * 60 * 1000));
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+  if (diff < 60 * 1000) return en ? "just now" : "刚刚";
+  if (diff < 60 * 60 * 1000) return en ? `${mins} min ago` : `${mins} 分钟前`;
+  if (diff < 24 * 60 * 60 * 1000) return en ? `${hours} h ago` : `${hours} 小时前`;
+  if (diff < 7 * 24 * 60 * 60 * 1000) return en ? `${days} d ago` : `${days} 天前`;
+  return formatDate(iso, en);
+}
+
+// 页头与页脚放在客户端组件里，才能跟随语言设置（页面本身是服务端组件）
+export function NotificationsIntro() {
+  const { language } = usePrefs();
+  const en = language === "en";
+  return (
+    <section className="mb-6">
+      <div className="flex items-center gap-2 text-sm text-slate-500">
+        <Bell className="h-4 w-4" aria-hidden />
+        <span>{en ? "Alerts" : "通知中心"}</span>
+      </div>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+        {en ? "Your alerts" : "你的通知"}
+      </h1>
+      <p className="mt-2 text-sm text-slate-500">
+        {en
+          ? "When sources or keywords you follow have something new, it shows up here"
+          : "关注的机构和关键词有新动态时，会在这里提醒你"}
+      </p>
+    </section>
+  );
+}
+
+export function NotificationsFooter() {
+  const { language } = usePrefs();
+  return (
+    <LocalDataNotice
+      variant="footer"
+      dismissible={false}
+      showSecondaryAction
+      customText={
+        language === "en"
+          ? LOCAL_DATA_NOTICE.notifications.footerTextEn
+          : LOCAL_DATA_NOTICE.notifications.footerText
+      }
+      secondaryActionHref="/subscribe"
+    />
+  );
 }
 
 export function NotificationsClient() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const { language } = usePrefs();
+  const en = language === "en";
 
   const todayDate = useMemo(() => {
     const d = new Date();
@@ -116,10 +166,12 @@ export function NotificationsClient() {
   }, {} as Record<string, NotificationItem[]>);
 
   const formatDateLabel = (dateStr: string) => {
-    if (dateStr === todayDate) return "今天";
-    if (dateStr === yesterdayDate) return "昨天";
+    if (dateStr === todayDate) return en ? "Today" : "今天";
+    if (dateStr === yesterdayDate) return en ? "Yesterday" : "昨天";
     const d = new Date(dateStr);
-    return `${d.getMonth() + 1}月${d.getDate()}日`;
+    return en
+      ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : `${d.getMonth() + 1}月${d.getDate()}日`;
   };
 
   if (loading) {
@@ -143,15 +195,17 @@ export function NotificationsClient() {
     return (
       <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-16 text-center">
         <Bell className="mx-auto mb-3 h-9 w-9 text-slate-300" aria-hidden />
-        <p className="text-sm font-medium text-slate-700">暂无通知</p>
+        <p className="text-sm font-medium text-slate-700">{en ? "No alerts yet" : "暂无通知"}</p>
         <p className="mt-1 text-xs text-slate-500">
-          关注机构或关键词后，有新政策会在这里提醒你
+          {en
+            ? "Follow sources or keywords and new items will show up here"
+            : "关注来源或关键词后，有新动态会在这里提醒你"}
         </p>
         <Link
           href="/subscribe"
           className="inline-flex items-center gap-1 mt-4 text-sm text-sky-600 hover:text-sky-700"
         >
-          去设置关注 →
+          {en ? "Set up follows →" : "去设置关注 →"}
         </Link>
       </div>
     );
@@ -161,10 +215,18 @@ export function NotificationsClient() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-slate-600">
-          共 <span className="font-semibold text-slate-900">{notifications.length}</span> 条通知
+          {en ? (
+            <>
+              <span className="font-semibold text-slate-900">{notifications.length}</span> alerts
+            </>
+          ) : (
+            <>
+              共 <span className="font-semibold text-slate-900">{notifications.length}</span> 条通知
+            </>
+          )}
           {unreadCount > 0 && (
             <span className="ml-2 text-xs text-rose-500">
-              {unreadCount} 条未读
+              {en ? `${unreadCount} unread` : `${unreadCount} 条未读`}
             </span>
           )}
         </div>
@@ -175,7 +237,7 @@ export function NotificationsClient() {
               onClick={handleMarkAllRead}
               className="text-xs text-slate-500 hover:text-slate-700 transition"
             >
-              全部标为已读
+              {en ? "Mark all read" : "全部标为已读"}
             </button>
           )}
           <button
@@ -183,7 +245,7 @@ export function NotificationsClient() {
             onClick={handleClearAll}
             className="text-xs text-rose-400 hover:text-rose-600 transition"
           >
-            一键清除
+            {en ? "Clear all" : "一键清除"}
           </button>
         </div>
       </div>
@@ -213,7 +275,7 @@ export function NotificationsClient() {
                         ) : (
                           <span className="relative">
                             <Bell className="h-4 w-4" aria-hidden />
-                            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-rose-500" />
+                            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[var(--brand)]" />
                           </span>
                         )}
                       </div>
@@ -237,7 +299,7 @@ export function NotificationsClient() {
                             totalCount={notif.matchedSubscriptions.length}
                           />
                           <span className="text-xs text-slate-400">
-                            {formatRelativeTime(notif.publishedAt || notif.createdAt)}
+                            {formatRelativeTime(notif.publishedAt || notif.createdAt, en)}
                           </span>
                         </div>
                         <Link
@@ -259,7 +321,7 @@ export function NotificationsClient() {
                             }`}
                           >
                             <BookOpen className="h-4 w-4" aria-hidden />
-                            <span>{isAdded ? "已加入待读" : "加入待读"}</span>
+                            <span>{isAdded ? (en ? "In queue" : "已加入待读") : (en ? "Add to queue" : "加入待读")}</span>
                           </button>
                           {!notif.read && (
                             <button
@@ -267,7 +329,7 @@ export function NotificationsClient() {
                               onClick={() => handleMarkRead(notif.id)}
                               className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs text-slate-500 hover:text-slate-700 transition"
                             >
-                              标为已读
+                              {en ? "Mark read" : "标为已读"}
                             </button>
                           )}
                         </div>

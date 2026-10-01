@@ -69,8 +69,8 @@ export function DetailToolbar({
 
   return (
     <>
-      <div className="fixed bottom-0 left-1/2 z-40 flex h-[78px] w-full max-w-[480px] -translate-x-1/2 gap-1.5 border-t border-slate-200 bg-slate-50/94 px-3.5 pb-[24px] pt-2.5 backdrop-blur-md">
-        <button
+      <div className="hide-when-zoomed fixed bottom-0 left-1/2 z-40 flex h-[78px] w-full max-w-[480px] -translate-x-1/2 gap-1.5 border-t border-slate-200 bg-slate-50/94 px-3.5 pb-[24px] pt-2.5 backdrop-blur-md">
+        <button data-owner-only
           type="button"
           aria-pressed={starred}
           onClick={() => {
@@ -86,7 +86,7 @@ export function DetailToolbar({
           {starred ? t("companion.detail.saved") : t("companion.detail.save")}
         </button>
 
-        <button
+        <button data-owner-only
           type="button"
           aria-pressed={read}
           onClick={() => {
@@ -100,7 +100,7 @@ export function DetailToolbar({
           {read ? t("companion.detail.markUnread") : t("companion.detail.markRead")}
         </button>
 
-        <button
+        <button data-owner-only
           type="button"
           disabled={sendState !== "idle"}
           onClick={() => {

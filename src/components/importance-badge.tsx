@@ -1,6 +1,7 @@
 "use client";
 
 import { getImportanceBadgeMeta } from "@/lib/monitor/priority-levels";
+import { usePrefs } from "@/contexts/prefs-context";
 
 type ImportanceBadgeProps = {
   level: string | null | undefined;
@@ -15,6 +16,7 @@ export function ImportanceBadge({
   showLegacyTag = false,
   className,
 }: ImportanceBadgeProps) {
+  const { language } = usePrefs();
   const meta = getImportanceBadgeMeta(level, keywordScore);
   if (!meta) return null;
 
@@ -25,9 +27,9 @@ export function ImportanceBadge({
       className={`inline-flex items-center rounded-full px-2 py-0.5 ${meta.className} ${className ?? ""}`}
       title={meta.description}
     >
-      <span>{meta.label}</span>
+      <span>{language === "en" ? meta.labelEn : meta.label}</span>
       {showLegacyTag && isLegacy ? (
-        <span className="ml-1 text-[9px] text-rose-600">(旧)</span>
+        <span className="ml-1 text-[11px] text-rose-600">{language === "en" ? "(legacy)" : "(旧)"}</span>
       ) : null}
     </span>
   );

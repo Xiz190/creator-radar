@@ -34,6 +34,7 @@ import {
 import { usePrefs } from "@/contexts/prefs-context";
 import { useT, type TranslationKey } from "@/lib/i18n";
 import { StatusIcon } from "@/components/status-icon";
+import { pickLens } from "@/lib/localized-fields";
 
 const ACTIVE_STATUSES: FollowUpStatus[] = ["to_read", "reading", "to_act"];
 
@@ -168,7 +169,7 @@ export function WorkspaceNotificationCard() {
           <Bell className="h-4 w-4 text-[var(--brand)]" />
           <span className="text-sm font-medium text-slate-900">{T("notif.title")}</span>
           {unreadCount > 0 && (
-            <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-medium text-white">
+            <span className="rounded-full bg-[var(--brand)] px-2 py-0.5 text-[11px] font-medium text-white">
               {unreadCount > 99 ? "99+" : unreadCount} {T("notif.unread")}
             </span>
           )}
@@ -181,7 +182,7 @@ export function WorkspaceNotificationCard() {
           <div
             key={notif.id}
             className={`flex items-start gap-2 rounded-xl p-3 ${
-              notif.read ? "bg-slate-50" : "bg-sky-50/50"
+              notif.read ? "bg-slate-50" : "bg-[var(--brand-tint)]/60"
             }`}
           >
             <div className="shrink-0 mt-0.5">
@@ -223,6 +224,8 @@ type WorkspaceItem = {
   hasProcurement?: boolean;
   hasPilot?: boolean;
   hasStandards?: boolean;
+  creatorLens?: string | null;
+  creatorLensEn?: string | null;
 };
 
 type WorkspaceTabKey = "followup" | "today" | "starred";
@@ -233,10 +236,6 @@ const TAB_CONFIG: Array<{ key: WorkspaceTabKey; i18nKey: TranslationKey; Icon: L
   { key: "starred",  i18nKey: "tabs.starred",  Icon: Star },
 ];
 
-function summarizeTitle(title: string, maxLen = 56): string {
-  if (title.length <= maxLen) return title;
-  return title.slice(0, maxLen) + "…";
-}
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -253,7 +252,8 @@ export function WorkspaceTabs({
   const { language } = usePrefs();
   const T = useT(language);
 
-  const [activeTab, setActiveTab] = useState<WorkspaceTabKey>("followup");
+  // 默认显示「今日」：待跟进为空时默认停在空标签页，首页第一眼就是空状态
+  const [activeTab, setActiveTab] = useState<WorkspaceTabKey>("today");
   const [followupItems, setFollowupItems] = useState<PersonalResearchItem[]>(() => {
     const all = getAllPersonalResearch();
     return all
@@ -261,6 +261,12 @@ export function WorkspaceTabs({
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 8);
   });
+  // 待跟进存在本地，服务端读不到；挂载后确实有才切过去，避免水合不一致
+  useEffect(() => {
+    if (followupItems.length > 0) setActiveTab("followup");
+    // 只在挂载时判断一次，之后尊重用户手动切换
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [loaded] = useState(true);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRecord[]>([]);
   const [subsLoaded, setSubsLoaded] = useState(false);
@@ -486,7 +492,7 @@ export function WorkspaceTabs({
                                 href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
                                 className="mt-1 block line-clamp-2 text-sm font-medium text-slate-900 hover:text-slate-700"
                               >
-                                {summarizeTitle(item.title)}
+                                {item.title}
                               </Link>
                               {item.note && (
                                 <p className="mt-1.5 text-xs text-slate-500 line-clamp-1">
@@ -517,9 +523,9 @@ export function WorkspaceTabs({
                           </div>
                           <div className="mt-3 flex flex-wrap items-center gap-1.5">
                             {[
-                              { status: "reading" as const, label: "在读", icon: Hourglass },
-                              { status: "to_act" as const, label: "待行动", icon: Target },
-                              { status: "done" as const, label: "已完成", icon: "✓" },
+                              { status: "reading" as const, label: T("followup.reading"), icon: Hourglass },
+                              { status: "to_act" as const, label: T("followup.to-act"), icon: Target },
+                              { status: "done" as const, label: T("followup.done"), icon: "✓" },
                             ].map((opt) => (
                               <button
                                 key={opt.status}
@@ -597,7 +603,7 @@ export function WorkspaceTabs({
                     key={`${item.sourceId}-${item.url}`}
                     className={`group rounded-2xl border p-4 transition hover:shadow-sm ${
                       isFollowed
-                        ? "border-sky-200 bg-sky-50/30 hover:border-sky-300 hover:bg-sky-50/50"
+                        ? "border-slate-200 bg-white hover:border-slate-300"
                         : "border-slate-100 bg-slate-50/40 hover:border-slate-200 hover:bg-white"
                     }`}
                   >
@@ -610,18 +616,18 @@ export function WorkspaceTabs({
                           {subsLoaded && itemMatches.length > 0 && (
                             <SubscriptionBadge matches={itemMatches} compact />
                           )}
-                          {item.keywordScore >= 40 && (
-                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                              信号强度 {item.keywordScore}
-                            </span>
-                          )}
                         </div>
                         <Link
                           href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
                           className="mt-1 block line-clamp-2 text-sm font-medium text-slate-900 hover:text-slate-700"
                         >
-                          {summarizeTitle(item.title)}
+                          {item.title}
                         </Link>
+                        {pickLens(item, language) && (
+                          <p className="mt-1 font-serif text-[13px] leading-snug text-[var(--brand)] line-clamp-2">
+                            {pickLens(item, language)}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between">
@@ -707,7 +713,7 @@ export function WorkspaceTabs({
                           href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
                           className="mt-1 block line-clamp-2 text-sm font-medium text-slate-900 hover:text-slate-700"
                         >
-                          {summarizeTitle(item.title)}
+                          {item.title}
                         </Link>
                       </div>
                     </div>

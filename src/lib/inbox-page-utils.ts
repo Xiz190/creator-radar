@@ -63,13 +63,19 @@ export function getShanghaiDateKeys(): { todayKey: string; yesterdayKey: string 
   return { todayKey, yesterdayKey };
 }
 
-export function formatDateLabel(dateKey: string): { label: string; isTodayOrYesterday: boolean } {
-  if (dateKey === "unknown") return { label: "未知日期", isTodayOrYesterday: false };
+export function formatDateLabel(dateKey: string, lang: "zh" | "en" = "zh"): { label: string; isTodayOrYesterday: boolean } {
+  if (dateKey === "unknown") return { label: lang === "en" ? "Unknown date" : "未知日期", isTodayOrYesterday: false };
   const { todayKey, yesterdayKey } = getShanghaiDateKeys();
   const [y, m, d] = dateKey.split("-");
   const parts = { year: Number(y), month: Number(m), day: Number(d) };
   if (!parts.year || !parts.month || !parts.day) return { label: dateKey, isTodayOrYesterday: false };
   const dayDate = new Date(parts.year, parts.month - 1, parts.day);
+  if (lang === "en") {
+    const monthDay = dayDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (dateKey === todayKey) return { label: `Today · ${monthDay}`, isTodayOrYesterday: true };
+    if (dateKey === yesterdayKey) return { label: `Yesterday · ${monthDay}`, isTodayOrYesterday: true };
+    return { label: dayDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }), isTodayOrYesterday: false };
+  }
   const weekdayCN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][dayDate.getDay()] || "";
   const monthLabel = `${parts.month}月${parts.day}日`;
   if (dateKey === todayKey) return { label: `今天 ${monthLabel}`, isTodayOrYesterday: true };

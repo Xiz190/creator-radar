@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useNavigation } from "@/hooks/use-navigation";
+import { useNavigation, visitorSettingsMenu } from "@/hooks/use-navigation";
+import { useDemoVisitor } from "@/hooks/use-demo-visitor";
 import {
   getUnreadCount as getNotificationUnreadCount,
   checkNotifications,
@@ -15,13 +16,14 @@ import { CommandPalette } from "@/components/command-palette";
 import { AboutModal } from "@/components/about-modal";
 import { AppTour } from "@/components/app-tour";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
-import { FloatingCommandButton } from "@/components/floating-command-button";
 import {
   Bell, Info, Map, Search, Settings,
 } from "lucide-react";
 
 export function SiteHeaderClient() {
-  const { pathname, primaryNav, settingsMenu, isNavActive, isMenuDivider } = useNavigation();
+  const { pathname, primaryNav, settingsMenu: fullSettingsMenu, isNavActive, isMenuDivider } = useNavigation();
+  const visitor = useDemoVisitor();
+  const settingsMenu = visitor ? visitorSettingsMenu(fullSettingsMenu) : fullSettingsMenu;
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
@@ -151,26 +153,23 @@ export function SiteHeaderClient() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-3 py-2 sm:px-6 sm:py-3 lg:flex-row lg:items-center lg:justify-between lg:py-3">
-        <div className="flex items-center gap-3">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-3 py-2 max-sm:flex-row max-sm:flex-wrap max-sm:items-center max-sm:gap-x-1.5 sm:px-6 sm:py-3 lg:flex-row lg:items-center lg:justify-between lg:py-3">
+        <div className="flex min-w-0 items-center gap-3 max-sm:mr-auto">
           <Link
             href="/"
             onClick={handleLogoClick}
             prefetch={false}
-            className="flex items-center gap-2 text-base font-semibold tracking-tight text-slate-900 sm:text-lg"
+            className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-tight text-slate-900 sm:text-lg"
           >
             <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs text-white sm:h-8 sm:w-8 sm:rounded-xl sm:text-sm" style={{ backgroundColor: "var(--brand)" }}>
-              {prefs.language === "en" ? "CI" : "创"}
+              {prefs.language === "en" ? "CR" : "创"}
             </span>
-            <span className="hidden sm:inline">{siteTitle}</span>
-            <span className="sm:hidden">
-              {prefs.language === "en" ? "Intel" : "情报站"}
-            </span>
+            <span className="truncate">{siteTitle}</span>
           </Link>
         </div>
 
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 lg:gap-3">
-          <nav className="-mx-3 flex items-center gap-0.5 overflow-x-auto px-3 pb-1 text-sm scrollbar-hide sm:-mx-6 sm:px-6 sm:gap-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:pb-0">
+        <div className="flex items-center justify-between gap-1.5 max-sm:contents sm:gap-2 lg:gap-3">
+          <nav className="-ml-3 flex min-w-0 flex-1 items-center max-sm:order-last max-sm:-mr-3 max-sm:basis-full max-sm:pr-3 gap-0.5 overflow-x-auto pl-3 pb-1 text-sm scrollbar-hide sm:-ml-6 sm:pl-6 sm:gap-1 lg:ml-0 lg:flex-none lg:flex-wrap lg:overflow-visible lg:pl-0 lg:pb-0">
             {primaryNav.map((item) => (
               <Link
                 key={item.href}
@@ -226,13 +225,13 @@ export function SiteHeaderClient() {
           <Link
             href="/notifications"
             prefetch={false}
-            className="relative flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
+            className="relative flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-1.5 text-sm sm:px-3 text-slate-700 transition hover:bg-slate-50"
             title={T("nav.notifications")}
           >
             <Bell className="h-4 w-4" aria-hidden />
             <span className="hidden sm:inline">{T("nav.notifications")}</span>
             {isMounted && unreadNotifCount > 0 && (
-              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-medium text-white">
+              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--brand)] px-1 text-[10px] font-medium text-white">
                 {unreadNotifCount > 99 ? "99+" : unreadNotifCount}
               </span>
             )}
@@ -268,8 +267,8 @@ export function SiteHeaderClient() {
                   >
                     <Map className="h-4 w-4" aria-hidden />
                     <div className="min-w-0 flex-1 text-left">
-                      <div className="font-medium text-slate-900">功能导览</div>
-                      <div className="text-xs text-slate-500">6 步了解核心功能</div>
+                      <div className="font-medium text-slate-900">{prefs.language === "en" ? "Tour" : "功能导览"}</div>
+                      <div className="text-xs text-slate-500">{prefs.language === "en" ? "The core features in 6 steps" : "6 步了解核心功能"}</div>
                     </div>
                   </button>
                   <div className="my-1 border-t border-slate-100" />
@@ -279,7 +278,7 @@ export function SiteHeaderClient() {
                         <div key={idx} className={idx > 0 ? "my-1 border-t border-slate-100" : ""}>
                           <div className="px-4 pt-2 pb-1">
                             <div className="text-xs font-medium text-slate-500">
-                              {item.groupLabel || T("nav.settings")}
+                              {(prefs.language === "en" ? item.groupLabelEn : item.groupLabel) || T("nav.settings")}
                             </div>
                           </div>
                         </div>
@@ -295,8 +294,8 @@ export function SiteHeaderClient() {
                       >
                         <item.icon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
                         <div className="min-w-0 flex-1">
-                          <div className="font-medium text-slate-900">{item.label}</div>
-                          <div className="truncate text-xs text-slate-500">{item.desc}</div>
+                          <div className="font-medium text-slate-900">{prefs.language === "en" ? item.labelEn : item.label}</div>
+                          <div className="truncate text-xs text-slate-500">{prefs.language === "en" ? item.descEn : item.desc}</div>
                         </div>
                       </Link>
                     );
@@ -311,13 +310,12 @@ export function SiteHeaderClient() {
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <AppTour open={tourOpen} onClose={() => setTourOpen(false)} />
       <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <FloatingCommandButton onOpen={() => setCmdOpen(true)} />
       {gHintOpen && (
         <div className="fixed bottom-24 right-4 z-[100] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl ring-1 ring-slate-900/5 sm:bottom-8 sm:right-6">
           <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">G → 导航</div>
           <div className="grid grid-cols-2 gap-x-5 gap-y-1.5">
             {[
-              { key: "I", label: "收件箱" },
+              { key: "I", label: "动态资讯" },
               { key: "S", label: "信号雷达" },
               { key: "D", label: "仪表盘" },
               { key: "H", label: "首页" },

@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { HBarChart, StatGrid } from "@/components/insight-charts";
 import { fetchSubscriptions, groupSubscriptions } from "@/lib/subscription-utils";
+import { usePrefs } from "@/contexts/prefs-context";
+import { useT } from "@/lib/i18n";
+
+// 条形图少于这么多行就不放进轮播：两根柱子飘在大卡片里只像空状态
+const MIN_BAR_ROWS = 3;
 
 // 全量语料统计（来自 /api/monitor/corpus-stats）——讲内容规模/来源结构，
 // 与"今日新增/阅读行为"无关，快照部署后也永远有内容，不会空。
@@ -33,6 +38,8 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
  * 数据为全量语料统计（源角色分布 / 内容时间线 / 规模总览）。
  */
 export function HomeInsightCarousel() {
+  const { language } = usePrefs();
+  const T = useT(language);
   const [stats, setStats] = useState<CorpusStats | null>(null);
   const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
   const [followedKeywords, setFollowedKeywords] = useState<Array<{ label: string; value: number }>>([]);
@@ -75,31 +82,31 @@ export function HomeInsightCarousel() {
   }, []);
 
   const slides: Array<{ title: string; body: React.ReactNode }> = [];
-  if (followedKeywords.length > 0) {
-    slides.push({ title: "我关注的关键词命中", body: <HBarChart rows={followedKeywords} /> });
+  if (followedKeywords.length >= MIN_BAR_ROWS) {
+    slides.push({ title: T("insight.followed-keywords"), body: <HBarChart rows={followedKeywords} /> });
   }
-  if (dashboard && Array.isArray(dashboard.topKeywords) && dashboard.topKeywords.length > 0) {
+  if (dashboard && Array.isArray(dashboard.topKeywords) && dashboard.topKeywords.length >= MIN_BAR_ROWS) {
     slides.push({
-      title: "关键词热度 Top",
+      title: T("insight.top-keywords"),
       body: <HBarChart rows={dashboard.topKeywords.slice(0, 8).map((k) => ({ label: k.keyword, value: k.count }))} />,
     });
   }
   if (stats) {
-    if (stats.sourceRoles.length > 0) {
-      slides.push({ title: "源角色分布", body: <HBarChart rows={stats.sourceRoles} /> });
+    if (stats.sourceRoles.length >= MIN_BAR_ROWS) {
+      slides.push({ title: T("insight.source-roles"), body: <HBarChart rows={stats.sourceRoles} /> });
     }
-    if (stats.topSources.length > 0) {
-      slides.push({ title: "活跃来源 Top", body: <HBarChart rows={stats.topSources} /> });
+    if (stats.topSources.length >= MIN_BAR_ROWS) {
+      slides.push({ title: T("insight.top-sources"), body: <HBarChart rows={stats.topSources} /> });
     }
     slides.push({
-      title: "规模总览",
+      title: T("insight.scale"),
       body: (
         <StatGrid
           cells={[
-            { label: "真实数据", value: stats.scale.total, spark: stats.timeline.map((t) => t.value) },
-            { label: "正文可展示", value: stats.scale.displayable },
-            { label: "数据源", value: stats.scale.sources },
-            { label: "内容年份", value: stats.scale.yearLabel },
+            { label: T("insight.scale.total"), value: stats.scale.total, spark: stats.timeline.map((t) => t.value) },
+            { label: T("insight.scale.displayable"), value: stats.scale.displayable },
+            { label: T("insight.scale.sources"), value: stats.scale.sources },
+            { label: T("insight.scale.years"), value: stats.scale.yearLabel },
           ]}
         />
       ),
@@ -117,8 +124,8 @@ export function HomeInsightCarousel() {
       className="rounded-2xl border border-slate-200 bg-white p-5"
       tabIndex={0}
       role="group"
-      aria-roledescription="情报图轮播"
-      aria-label="情报速览"
+      aria-roledescription={T("insight.carousel")}
+      aria-label={T("insight.title")}
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") { e.preventDefault(); go(1); }
         if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); }
@@ -133,27 +140,26 @@ export function HomeInsightCarousel() {
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="h-3.5 w-1 rounded-sm bg-[var(--brand)]" aria-hidden />
-          <span className="font-serif text-sm font-semibold text-slate-900">情报速览</span>
-          {n > 0 && <span className="truncate text-[11px] text-slate-400">· {slides[safeIdx].title}</span>}
+          <h2 className="text-sm font-semibold text-slate-900">{T("insight.title")}</h2>
+          {n > 0 && <span className="truncate text-xs text-slate-500">· {slides[safeIdx].title}</span>}
         </div>
         {n > 1 && (
           <div className="flex shrink-0 items-center gap-1">
-            <button type="button" onClick={() => go(-1)} aria-label="上一张" className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+            <button type="button" onClick={() => go(-1)} aria-label={T("insight.prev")} className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
               <Chevron dir="left" />
             </button>
-            <button type="button" onClick={() => go(1)} aria-label="下一张" className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+            <button type="button" onClick={() => go(1)} aria-label={T("insight.next")} className="flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
               <Chevron dir="right" />
             </button>
           </div>
         )}
       </div>
 
-      <div key={safeIdx} className="radar-fade flex min-h-[210px] items-center justify-center">
+      <div key={safeIdx} className="radar-fade flex min-h-[210px] flex-col justify-center">
         {n > 0 ? (
           slides[safeIdx].body
         ) : (
-          <p className="text-xs text-slate-400">{loaded ? "暂无情报数据" : "情报速览加载中…"}</p>
+          <p className="text-center text-xs text-slate-500">{loaded ? T("insight.empty") : T("insight.loading")}</p>
         )}
       </div>
 

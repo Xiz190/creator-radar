@@ -11,6 +11,7 @@ export const LOCAL_DATA_NOTICE = {
     "你的关注设置、通知偏好、研究记录保存在当前浏览器中，清理缓存或更换设备后会丢失。后续版本将支持云端同步。",
   primaryActionText: "我知道了",
   secondaryActionText: "了解更多",
+  secondaryActionTextEn: "Learn more",
   dismissLabel: "以后再说",
   showGuideLabel: "查看数据说明",
   scopeLabel: "当前覆盖范围",
@@ -26,6 +27,7 @@ export const LOCAL_DATA_NOTICE = {
   },
   notifications: {
     footerText: "通知数据保存在本地浏览器中 · 仅保留最近 7 天",
+    footerTextEn: "Alerts are stored in this browser · kept for 7 days",
     primaryActionText: "了解更多",
   },
   firstTime: {
@@ -50,6 +52,29 @@ export const LOCAL_DATA_NOTICE = {
     ],
     primaryActionText: "我知道了，开始使用",
     secondaryActionText: "前往设置页查看",
+  },
+  firstTimeEn: {
+    title: "Your data stays in this browser",
+    subtitle: "A few things to know before you start",
+    bullets: [
+      {
+        icon: Laptop,
+        title: "Saved in this browser only",
+        desc: "Follows, research notes and other settings live only in the browser you're using now",
+      },
+      {
+        icon: RefreshCw,
+        title: "Lost if you switch devices or clear cache",
+        desc: "A new device, a cleared cache or a private window won't keep your data",
+      },
+      {
+        icon: Rocket,
+        title: "Cloud sync is planned for v2.0",
+        desc: "Accounts and cloud sync are on the roadmap for a later version",
+      },
+    ],
+    primaryActionText: "Got it, let's go",
+    secondaryActionText: "Open settings",
   },
 } as const;
 

@@ -247,7 +247,16 @@ export async function POST(request: Request) {
       return toTime(b.listPublishedAt) - toTime(a.listPublishedAt);
     });
 
-    const top = hits.slice(0, topItems);
+    // 同一篇文章常被多个网站原样转载，标题完全相同：只留排序最靠前的一份，免得助手引用三遍同一条
+    const seenTitles = new Set<string>();
+    const top = hits
+      .filter((h) => {
+        const key = (h.title ?? "").trim();
+        if (seenTitles.has(key)) return false;
+        seenTitles.add(key);
+        return true;
+      })
+      .slice(0, topItems);
 
     // —— 4. 组装前端数据（把 paragraphs 去掉换成 hitParagraphs，减小 payload）
     const items = top.map((h) => ({

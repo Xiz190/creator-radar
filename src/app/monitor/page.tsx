@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
+import { LangText } from "@/components/lang-text";
 import { MonitorRunner } from "@/components/monitor-runner";
 import { BulkActions } from "@/components/bulk-actions";
 import { RunHistoryPanel } from "@/components/run-history-panel";
@@ -49,9 +50,9 @@ export default async function MonitorPage() {
   const totalItems = itemCounts.reduce((s, c) => s + c.count, 0);
   const totalDepartments = grouped.length;
 
-  const runSummary =
+  const finishedAtText =
     latestRun && latestRun.status === "success"
-      ? `最近一次监测成功，${
+      ? `${
           latestRun.finishedAt
             ? (() => {
                 const parts = new Intl.DateTimeFormat("en-CA", {
@@ -72,9 +73,13 @@ export default async function MonitorPage() {
               })()
             : ""
         }`
+      : "";
+  const runSummary =
+    latestRun && latestRun.status === "success"
+      ? { zh: `最近一次监测成功，${finishedAtText}`, en: `Last run succeeded at ${finishedAtText}` }
       : latestRun && latestRun.status === "error"
-        ? `最近一次监测失败：${latestRun.errorMessage ?? ""}`
-        : "暂未运行过监测任务，可在下方手动启动。";
+        ? { zh: `最近一次监测失败：${latestRun.errorMessage ?? ""}`, en: `Last run failed: ${latestRun.errorMessage ?? ""}` }
+        : { zh: "暂未运行过监测任务，可在下方手动启动。", en: "No runs yet — start one manually below." };
 
   const isRunning = status?.status === "running";
 
@@ -86,34 +91,34 @@ export default async function MonitorPage() {
         <section className="rounded-[28px] bg-gradient-to-br from-slate-900 to-slate-800 px-8 py-8 text-white shadow-sm">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-2xl space-y-3">
-              <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-sm">系统设置</span>
-              <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl">监测与数据管理</h1>
+              <span className="inline-flex rounded-full bg-white/10 px-3 py-1 text-sm"><LangText zh={"系统设置"} en={"Settings"} /></span>
+              <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl"><LangText zh={"监测与数据管理"} en={"Monitoring & data"} /></h1>
               <p className="text-base leading-7 text-slate-300">
-                配置监测来源、管理关键词库、运行监测任务、诊断数据质量。仅管理员使用，普通用户请前往动态资讯浏览。
+                <LangText zh={"配置监测来源、管理关键词库、运行监测任务、诊断数据质量。仅管理员使用，普通用户请前往动态资讯浏览。"} en={"Configure sources, maintain the keyword library, run crawls and check data quality. Admin only — readers should head to the News Feed."} />
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-2xl bg-white/10 px-4 py-3">
-                <div className="text-xs text-slate-300">纳管来源</div>
+                <div className="text-xs text-slate-300"><LangText zh={"纳管来源"} en={"Feeds"} /></div>
                 <div className="mt-1 text-xl font-semibold">{totalSources}</div>
               </div>
               <div className="rounded-2xl bg-white/10 px-4 py-3">
-                <div className="text-xs text-slate-300">来源数量</div>
+                <div className="text-xs text-slate-300"><LangText zh={"来源数量"} en={"Sources"} /></div>
                 <div className="mt-1 text-xl font-semibold">{totalDepartments}</div>
               </div>
               <div className="rounded-2xl bg-white/10 px-4 py-3">
-                <div className="text-xs text-slate-300">自动监测</div>
+                <div className="text-xs text-slate-300"><LangText zh={"自动监测"} en={"Auto-crawled"} /></div>
                 <div className="mt-1 text-xl font-semibold">{autoSources}</div>
               </div>
               <div className="rounded-2xl bg-white/10 px-4 py-3">
-                <div className="text-xs text-slate-300">累计入库</div>
+                <div className="text-xs text-slate-300"><LangText zh={"累计入库"} en={"Items stored"} /></div>
                 <div className="mt-1 text-xl font-semibold">{totalItems}</div>
               </div>
             </div>
           </div>
           <div className="mt-5 flex items-center gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm text-slate-200">
             <span className={`inline-block h-2 w-2 rounded-full ${isRunning ? "animate-pulse bg-emerald-400" : latestRun?.status === "success" ? "bg-emerald-400" : latestRun?.status === "error" ? "bg-rose-400" : "bg-slate-400"}`} />
-            {runSummary}
+            <LangText zh={runSummary.zh} en={runSummary.en} />
           </div>
         </section>
 
@@ -121,38 +126,38 @@ export default async function MonitorPage() {
         <section>
           <div className="mb-3 flex items-center gap-2 px-1">
             <Zap className="h-5 w-5" aria-hidden />
-            <h2 className="text-base font-semibold text-slate-900">监测与任务</h2>
-            <span className="text-xs text-slate-500">启动 / 状态 / 历史</span>
+            <h2 className="text-base font-semibold text-slate-900"><LangText zh={"监测与任务"} en={"Crawls"} /></h2>
+            <span className="text-xs text-slate-500"><LangText zh={"启动 / 状态 / 历史"} en={"Run / status / history"} /></span>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Link href="#runner" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400">
               <div className="flex items-center gap-2">
                 <Footprints className="h-6 w-6" aria-hidden />
-                <div className="text-sm text-slate-500">手动运行</div>
+                <div className="text-sm text-slate-500"><LangText zh={"手动运行"} en={"Manual run"} /></div>
               </div>
-              <div className="mt-2 text-lg font-semibold">启动监测任务</div>
+              <div className="mt-2 text-lg font-semibold"><LangText zh={"启动监测任务"} en={"Start a crawl"} /></div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                选择来源或栏目手动抓取最新内容。日常自动监测已在后台定时运行。
+                <LangText zh={"选择来源或栏目手动抓取最新内容。日常自动监测已在后台定时运行。"} en={"Pick sources or channels to crawl now. Routine crawls already run on a schedule."} />
               </p>
               <div className="mt-4 inline-flex h-9 items-center text-sm font-medium text-slate-900">
-                展开运行面板 →
+                <LangText zh={"展开运行面板 →"} en={"Open the run panel →"} />
               </div>
             </Link>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2">
                 <ChartColumn className="h-6 w-6" aria-hidden />
-                <div className="text-sm text-slate-500">运行状态</div>
+                <div className="text-sm text-slate-500"><LangText zh={"运行状态"} en={"Status"} /></div>
               </div>
               <div className="mt-2 text-lg font-semibold">
-                {isRunning ? "监测运行中…" : latestRun?.status === "success" ? "运行正常" : "空闲"}
+                {isRunning ? <LangText zh={"监测运行中…"} en={"Running…"} /> : latestRun?.status === "success" ? <LangText zh={"运行正常"} en={"Healthy"} /> : <LangText zh={"空闲"} en={"Idle"} />}
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 {isRunning
-                  ? "当前正在执行监测任务，请稍候…"
+                  ? <LangText zh="当前正在执行监测任务，请稍候…" en="A crawl is running — hang on…" />
                   : latestRun?.status === "success"
-                    ? "上一次运行成功，数据是最新的。"
-                    : "暂无运行记录。"}
+                    ? <LangText zh="上一次运行成功，数据是最新的。" en="The last run succeeded; data is up to date." />
+                    : <LangText zh="暂无运行记录。" en="No runs yet." />}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
@@ -165,10 +170,10 @@ export default async function MonitorPage() {
                     : latestRun?.status === "success" ? "bg-emerald-500"
                     : "bg-slate-400"
                   }`} />
-                  {isRunning ? "运行中" : latestRun?.status === "success" ? "正常" : "空闲"}
+                  {isRunning ? <LangText zh={"运行中"} en={"Running"} /> : latestRun?.status === "success" ? <LangText zh={"正常"} en={"OK"} /> : <LangText zh={"空闲"} en={"Idle"} />}
                 </span>
                 <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                  自动监测 {autoSources} 个
+                  <LangText zh={`自动监测 ${autoSources} 个`} en={`${autoSources} auto-crawled`} />
                 </span>
               </div>
             </div>
@@ -179,8 +184,8 @@ export default async function MonitorPage() {
         <section>
           <div className="mb-3 flex items-center gap-2 px-1">
             <Clock className="h-5 w-5" aria-hidden />
-            <h2 className="text-base font-semibold text-slate-900">最近运行记录</h2>
-            <span className="text-xs text-slate-500">最近 12 次监测</span>
+            <h2 className="text-base font-semibold text-slate-900"><LangText zh={"最近运行记录"} en={"Recent runs"} /></h2>
+            <span className="text-xs text-slate-500"><LangText zh={"最近 12 次监测"} en={"Last 12 runs"} /></span>
           </div>
           <RunHistoryPanel />
         </section>
@@ -206,8 +211,8 @@ export default async function MonitorPage() {
             <section>
               <div className="mb-3 flex items-center gap-2 px-1">
                 <Trophy className="h-5 w-5" aria-hidden />
-                <h2 className="text-base font-semibold text-slate-900">来源活跃度排名</h2>
-                <span className="text-xs text-slate-500">按累计入库条目数</span>
+                <h2 className="text-base font-semibold text-slate-900"><LangText zh={"来源活跃度排名"} en={"Most active sources"} /></h2>
+                <span className="text-xs text-slate-500"><LangText zh={"按累计入库条目数"} en={"By items stored"} /></span>
               </div>
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="space-y-3">
@@ -231,7 +236,7 @@ export default async function MonitorPage() {
                             />
                             {src.name}
                           </span>
-                          <span className="ml-2 shrink-0 text-slate-500">{src.count} 条</span>
+                          <span className="ml-2 shrink-0 text-slate-500">{src.count} <LangText zh="条" en="items" /></span>
                         </div>
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
                           <div
@@ -268,30 +273,30 @@ export default async function MonitorPage() {
             <section>
               <div className="mb-3 flex items-center gap-2 px-1">
                 <Stethoscope className="h-5 w-5" aria-hidden />
-                <h2 className="text-base font-semibold text-slate-900">来源健康概览</h2>
-                <span className="text-xs text-slate-500">按最近条目入库时间</span>
+                <h2 className="text-base font-semibold text-slate-900"><LangText zh={"来源健康概览"} en={"Source health"} /></h2>
+                <span className="text-xs text-slate-500"><LangText zh={"按最近条目入库时间"} en={"By when each source last added an item"} /></span>
               </div>
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                    <span className="text-slate-700">24h 内活跃</span>
+                    <span className="text-slate-700"><LangText zh={"24h 内活跃"} en={"Active in 24h"} /></span>
                     <span className="font-semibold text-slate-900">{green.length}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
-                    <span className="text-slate-700">3 天内更新</span>
+                    <span className="text-slate-700"><LangText zh={"3 天内更新"} en={"Updated in 3 days"} /></span>
                     <span className="font-semibold text-slate-900">{yellow.length}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-                    <span className="text-slate-700">超期 / 无数据</span>
+                    <span className="text-slate-700"><LangText zh={"超期 / 无数据"} en={"Stale / no data"} /></span>
                     <span className="font-semibold text-slate-900">{red.length}</span>
                   </div>
                 </div>
                 {red.length > 0 && (
                   <div className="mt-4">
-                    <div className="mb-2 text-xs font-medium text-slate-500">需关注来源</div>
+                    <div className="mb-2 text-xs font-medium text-slate-500"><LangText zh={"需关注来源"} en={"Needs attention"} /></div>
                     <div className="flex flex-wrap gap-1.5">
                       {red.slice(0, 12).map(({ s }) => (
                         <span key={s.id} className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] text-red-700" title={s.departmentName}>
@@ -299,7 +304,7 @@ export default async function MonitorPage() {
                         </span>
                       ))}
                       {red.length > 12 && (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">+{red.length - 12} 个</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">+{red.length - 12}</span>
                       )}
                     </div>
                   </div>
@@ -313,42 +318,42 @@ export default async function MonitorPage() {
         <section>
           <div className="mb-3 flex items-center gap-2 px-1">
             <RadioTower className="h-5 w-5" aria-hidden />
-            <h2 className="text-base font-semibold text-slate-900">来源与关键词</h2>
-            <span className="text-xs text-slate-500">配置采集范围和识别规则</span>
+            <h2 className="text-base font-semibold text-slate-900"><LangText zh={"来源与关键词"} en={"Sources & keywords"} /></h2>
+            <span className="text-xs text-slate-500"><LangText zh={"配置采集范围和识别规则"} en={"What to crawl and how to classify it"} /></span>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Link href="/monitor/sources" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400">
               <div className="flex items-center gap-2">
                 <Landmark className="h-6 w-6" aria-hidden />
-                <div className="text-sm text-slate-500">来源管理</div>
+                <div className="text-sm text-slate-500"><LangText zh={"来源管理"} en={"Sources"} /></div>
               </div>
-              <div className="mt-2 text-lg font-semibold">来源与栏目配置</div>
+              <div className="mt-2 text-lg font-semibold"><LangText zh={"来源与栏目配置"} en={"Sources & channels"} /></div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                录入来源平台、栏目、原始网址。支持批量导入、启停控制、重点标记。
+                <LangText zh={"录入来源平台、栏目、原始网址。支持批量导入、启停控制、重点标记。"} en={"Add platforms, channels and source URLs. Bulk import, enable/disable and key flags."} />
               </p>
               <div className="mt-4 flex items-center gap-3 text-xs text-slate-500">
-                <span>{totalSources} 个来源</span>
+                <span><LangText zh={`${totalSources} 个来源`} en={`${totalSources} feeds`} /></span>
                 <span>·</span>
-                <span>{autoSources} 个自动监测</span>
+                <span><LangText zh={`${autoSources} 个自动监测`} en={`${autoSources} auto-crawled`} /></span>
                 <span>·</span>
-                <span>{keySources} 个重点</span>
+                <span><LangText zh={`${keySources} 个重点`} en={`${keySources} key`} /></span>
               </div>
               <div className="mt-4 inline-flex h-9 items-center rounded-full bg-slate-900 px-4 text-sm text-white">
-                去配置 →
+                <LangText zh={"去配置 →"} en={"Configure →"} />
               </div>
             </Link>
 
             <Link href="/keywords" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400">
               <div className="flex items-center gap-2">
                 <Languages className="h-6 w-6" aria-hidden />
-                <div className="text-sm text-slate-500">关键词库维护</div>
+                <div className="text-sm text-slate-500"><LangText zh={"关键词库维护"} en={"Keywords"} /></div>
               </div>
-              <div className="mt-2 text-lg font-semibold">全局关键词库</div>
+              <div className="mt-2 text-lg font-semibold"><LangText zh={"全局关键词库"} en={"Global keyword library"} /></div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                配置全局和来源级关键词库，用于系统信号识别、分类匹配和优先级计算。管理员维护，用户侧不可见。
+                <LangText zh={"配置全局和来源级关键词库，用于系统信号识别、分类匹配和优先级计算。管理员维护，用户侧不可见。"} en={"Global and per-source keywords used for signal detection, categorisation and priority. Admin-maintained; not shown to readers."} />
               </p>
               <div className="mt-4 inline-flex h-9 items-center rounded-full bg-slate-900 px-4 text-sm text-white">
-                去维护 →
+                <LangText zh={"去维护 →"} en={"Manage →"} />
               </div>
             </Link>
           </div>
@@ -358,35 +363,35 @@ export default async function MonitorPage() {
         <section>
           <div className="mb-3 flex items-center gap-2 px-1">
             <Wrench className="h-5 w-5" aria-hidden />
-            <h2 className="text-base font-semibold text-slate-900">诊断与工具</h2>
-            <span className="text-xs text-slate-500">数据健康检查与批量操作</span>
+            <h2 className="text-base font-semibold text-slate-900"><LangText zh={"诊断与工具"} en={"Diagnostics & tools"} /></h2>
+            <span className="text-xs text-slate-500"><LangText zh={"数据健康检查与批量操作"} en={"Data health checks and bulk actions"} /></span>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Link href="/monitor/diagnose" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400">
               <div className="flex items-center gap-2">
                 <Stethoscope className="h-6 w-6" aria-hidden />
-                <div className="text-sm text-slate-500">数据诊断</div>
+                <div className="text-sm text-slate-500"><LangText zh={"数据诊断"} en={"Diagnostics"} /></div>
               </div>
-              <div className="mt-2 text-lg font-semibold">诊断与清理</div>
+              <div className="mt-2 text-lg font-semibold"><LangText zh={"诊断与清理"} en={"Diagnose & clean up"} /></div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                检查旧分类残留、抓取失败条目、分类分布。排查数据质量问题。
+                <LangText zh={"检查旧分类残留、抓取失败条目、分类分布。排查数据质量问题。"} en={"Find leftover legacy categories, failed captures and category skew — data quality issues."} />
               </p>
               <div className="mt-4 inline-flex h-9 items-center rounded-full bg-slate-900 px-4 text-sm text-white">
-                打开诊断 →
+                <LangText zh={"打开诊断 →"} en={"Open diagnostics →"} />
               </div>
             </Link>
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-2">
                 <Package className="h-6 w-6" aria-hidden />
-                <div className="text-sm text-slate-500">批量操作</div>
+                <div className="text-sm text-slate-500"><LangText zh={"批量操作"} en={"Bulk actions"} /></div>
               </div>
-              <div className="mt-2 text-lg font-semibold">批量维护工具</div>
+              <div className="mt-2 text-lg font-semibold"><LangText zh={"批量维护工具"} en={"Bulk maintenance"} /></div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                种子数据、重新计算优先级、批量重抓、清理测试数据等。
+                <LangText zh={"种子数据、重新计算优先级、批量重抓、清理测试数据等。"} en={"Seed data, recompute priorities, bulk re-capture, clear test data and more."} />
               </p>
               <div className="mt-4 text-xs text-slate-500">
-                操作入口在下方折叠区
+                <LangText zh={"操作入口在下方折叠区"} en={"Controls are in the collapsed section below"} />
               </div>
             </div>
           </div>
@@ -399,8 +404,8 @@ export default async function MonitorPage() {
               <div className="flex items-center gap-3">
                 <Settings className="h-5 w-5" aria-hidden />
                 <div>
-                  <div className="font-semibold text-slate-900">高级操作区</div>
-                  <div className="text-xs text-slate-500">任务运行器与批量维护工具</div>
+                  <div className="font-semibold text-slate-900"><LangText zh={"高级操作区"} en={"Advanced"} /></div>
+                  <div className="text-xs text-slate-500"><LangText zh={"任务运行器与批量维护工具"} en={"Crawl runner and bulk maintenance tools"} /></div>
                 </div>
               </div>
               <span className="text-sm text-slate-500 transition group-open:rotate-180">▾</span>

@@ -1,17 +1,24 @@
 import { getPgPool } from "@/lib/db";
+import { isGenericKeyword } from "@/lib/monitor/generic-keywords";
 
 export async function getDepartmentUpdateStats(daysAgo: number = 7) {
   const pool = getPgPool();
   const since = new Date(Date.now() - daysAgo * 24 * 3600 * 1000).toISOString();
-  const today = new Date().toISOString().split("T")[0];
+  // 日期键统一按上海时区切天、并在 SQL 里格式化成 YYYY-MM-DD 字符串。
+  // 原先返回 ::date，pg 驱动会转成 JS Date，String() 后是 "Fri Sep 25 2026 ..."，
+  // 永远对不上下面的日期键 → 每日序列全 0、各来源「今日」全 0、看板「本周新增 0」。
+  const shanghaiDay = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(d);
+  const today = shanghaiDay(new Date());
 
   const dailyRes = await pool.query<{ department_name: string; date: string; count: string }>(
-    `select s.department_name, date_trunc('day', i.first_seen_at)::date as date, count(*) as count
+    `select s.department_name,
+            to_char(i.first_seen_at at time zone 'Asia/Shanghai', 'YYYY-MM-DD') as date,
+            count(*) as count
      from monitor_items i
      join monitor_sources s on s.id = i.source_id
      where i.first_seen_at >= $1::timestamptz and s.department_name is not null
-     group by s.department_name, date_trunc('day', i.first_seen_at)::date
-     order by s.department_name, date`,
+     group by s.department_name, 2
+     order by s.department_name, 2`,
     [since],
   );
 
@@ -34,11 +41,9 @@ export async function getDepartmentUpdateStats(daysAgo: number = 7) {
     }
   }
 
-  const dates = Array.from({ length: daysAgo }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (daysAgo - 1 - i));
-    return d.toISOString().split("T")[0];
-  });
+  const dates = Array.from({ length: daysAgo }, (_, i) =>
+    shanghaiDay(new Date(Date.now() - (daysAgo - 1 - i) * 24 * 3600 * 1000)),
+  );
 
   const result: Array<{ departmentName: string; total: number; todayCount: number; series: Array<{ date: string; count: number }> }> = [];
   for (const [dept, series] of deptSeries) {
@@ -99,14 +104,14 @@ export async function getSignalTrend(daysAgo: number = 30) {
     starred: string;
     important: string;
   }>(
-    `select date_trunc('day', i.first_seen_at)::date as date,
+    `select to_char(i.first_seen_at at time zone 'Asia/Shanghai', 'YYYY-MM-DD') as date,
             count(*) as total,
             sum(case when i.is_starred then 1 else 0 end) as starred,
             sum(case when i.importance_level in ('重点内容', '核心关注') then 1 else 0 end) as important
      from monitor_items i
      where i.first_seen_at >= $1::timestamptz
-     group by date_trunc('day', i.first_seen_at)::date
-     order by date`,
+     group by 1
+     order by 1`,
     [since],
   );
   return res.rows.map((row) => ({
@@ -116,6 +121,7 @@ export async function getSignalTrend(daysAgo: number = 30) {
     important: Number(row.important),
   }));
 }
+
 
 export async function getTopKeywords(limit: number = 20, days: number = 14) {
   const pool = getPgPool();
@@ -132,13 +138,13 @@ export async function getTopKeywords(limit: number = 20, days: number = 14) {
      group by k, c->>'category'
      order by cnt desc
      limit $2`,
-    [since, limit * 2],
+    [since, limit * 4],
   );
 
   const counter = new Map<string, { keyword: string; category: string; count: number }>();
   for (const row of res1.rows) {
     const kw = String(row.keyword).trim();
-    if (!kw) continue;
+    if (!kw || isGenericKeyword(kw)) continue;
     const key = `${kw}::${row.category}`;
     const existing = counter.get(key);
     if (existing) existing.count += Number(row.cnt);
@@ -179,24 +185,28 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
     url: string;
     source_id: string;
     creator_lens: string;
+    creator_lens_en: string | null;
     list_published_at: string;
     keyword_score: number;
     importance_level: string | null;
     source_name: string | null;
   }>(
-    `select i.title, i.url, i.source_id, i.creator_lens,
+    `select i.title, i.url, i.source_id, i.creator_lens, i.creator_lens_en,
             i.list_published_at::text as list_published_at,
             i.keyword_score, i.importance_level,
             s.display_name as source_name
      from monitor_items i
      join monitor_sources s on s.id = i.source_id
      where i.creator_lens is not null and length(trim(i.creator_lens)) > 0
-     order by i.keyword_score desc nulls last, i.list_published_at desc
+       -- 「近期」最重点：只看近 45 天，否则 3 月、5 月的旧条目会凭重要性长期霸榜
+       and i.list_published_at >= current_date - 45
+     order by (case i.importance_level when '核心关注' then 4 when '重点内容' then 3 when '中等重点' then 2 else 1 end) desc,
+              i.keyword_score desc nulls last, i.list_published_at desc
      limit 20`,
   );
   // 同源最多 2 条，避免头条被单个来源的一批发布刷屏
   const perSource = new Map<string, number>();
-  const topHighlights: Array<{ title: string; url: string; sourceId: string; lens: string; source: string; date: string; score: number; level: string }> = [];
+  const topHighlights: Array<{ title: string; url: string; sourceId: string; lens: string; lensEn: string | null; source: string; date: string; score: number; level: string }> = [];
   for (const r of highlightsRes.rows) {
     const src = (r.source_name ?? "").split("·")[0];
     const used = perSource.get(src) ?? 0;
@@ -207,6 +217,7 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
       url: r.url,
       sourceId: r.source_id,
       lens: r.creator_lens,
+      lensEn: r.creator_lens_en,
       source: src,
       date: r.list_published_at,
       score: Number(r.keyword_score),
@@ -230,9 +241,10 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
      group by kw
      having count(*) >= 2
      order by count(*) desc
-     limit 8`,
+     limit 20`,
   );
-  const hotTopics = hotTopicsRes.rows.map((r) => ({
+  // 权重 >= 5 的词表里仍混着 introducing/release/发布 这类通用词，再过一遍停用表
+  const hotTopics = hotTopicsRes.rows.filter((r) => !isGenericKeyword(r.keyword)).slice(0, 8).map((r) => ({
     keyword: r.keyword,
     important: Number(r.important_ct),
     normal: Number(r.normal_ct),
@@ -244,11 +256,11 @@ export async function getDashboardSummary(days: number = 14, topKeywordsLimit: n
   const HEAT_WINDOW_DAYS = 170;
   const heatSince = new Date(Date.now() - HEAT_WINDOW_DAYS * 24 * 3600 * 1000).toISOString();
   const heatRes = await pool.query<{ date: string; count: string }>(
-    `select to_char(date_trunc('day', first_seen_at), 'YYYY-MM-DD') as date, count(*)::text as count
+    `select to_char(first_seen_at at time zone 'Asia/Shanghai', 'YYYY-MM-DD') as date, count(*)::text as count
      from monitor_items
      where first_seen_at >= $1::timestamptz
-     group by date_trunc('day', first_seen_at)
-     order by date_trunc('day', first_seen_at)`,
+     group by 1
+     order by 1`,
     [heatSince],
   );
   const heatmapDaily = heatRes.rows.map((r) => ({ date: r.date, count: Number(r.count) }));

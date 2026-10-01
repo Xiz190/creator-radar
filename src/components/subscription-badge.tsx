@@ -1,6 +1,7 @@
 "use client";
 
 import type { MatchedSubscription } from "@/lib/subscription-utils";
+import { usePrefs } from "@/contexts/prefs-context";
 
 // 关注/收藏标记图标（内联 SVG，与 Chevron 同一套描边风格）
 function BookmarkIcon({ className }: { className?: string }) {
@@ -36,17 +37,21 @@ export function SubscriptionBadge({
   totalCount,
   compact = false,
 }: SubscriptionBadgeProps) {
+  const { language } = usePrefs();
+  const en = language === "en";
   if (matches.length === 0) return null;
 
-  const displayText = matches.map((m) => m.displayName).join("、");
+  const displayText = matches.map((m) => m.displayName).join(en ? ", " : "、");
   const extraCount = totalCount && totalCount > matches.length ? totalCount - matches.length : 0;
-  const title = `来自你的关注：${displayText}${extraCount > 0 ? ` 等 ${totalCount} 项` : ""}`;
+  const title = en
+    ? `From what you follow: ${displayText}${extraCount > 0 ? ` and ${extraCount} more` : ""}`
+    : `来自你的关注：${displayText}${extraCount > 0 ? ` 等 ${totalCount} 项` : ""}`;
 
   if (compact) {
     return (
       <span className={CHIP} title={title}>
         <BookmarkIcon />
-        关注匹配
+        {en ? "Following" : "关注匹配"}
       </span>
     );
   }
@@ -55,7 +60,7 @@ export function SubscriptionBadge({
     <span className={CHIP} title={title}>
       <BookmarkIcon />
       <span className="truncate">
-        来自关注：{displayText}
+        {en ? "Following: " : "来自关注："}{displayText}
         {extraCount > 0 && ` +${extraCount}`}
       </span>
     </span>

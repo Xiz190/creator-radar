@@ -6,6 +6,8 @@ import { Home, Inbox, Radar, Activity, type LucideIcon } from "lucide-react";
 import { usePrefs } from "@/contexts/prefs-context";
 import { isCompanionPath } from "@/lib/companion/nav";
 import { useT, type TranslationKey } from "@/lib/i18n";
+import { useDemoVisitor } from "@/hooks/use-demo-visitor";
+import { isOwnerOnlyPage } from "@/lib/owner-only";
 
 const TABS: { href: string; labelKey: TranslationKey; Icon: LucideIcon }[] = [
   { href: "/", labelKey: "nav.tab.workspace", Icon: Home },
@@ -18,10 +20,14 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const { focusMode, language } = usePrefs();
   const t = useT(language);
+  // 演示站访客看不到「监测」（系统管理是作者专属页）
+  const visitor = useDemoVisitor();
   if (focusMode) return null;
 
   // 伴侣版有自己的底部 tab bar
   if (isCompanionPath(pathname)) return null;
+
+  const tabs = visitor ? TABS.filter((tab) => !isOwnerOnlyPage(tab.href)) : TABS;
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -29,9 +35,9 @@ export function MobileBottomNav() {
   }
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-sm sm:hidden">
-      <div className="grid grid-cols-4 safe-area-inset-bottom">
-        {TABS.map((tab) => {
+    <nav className="hide-when-zoomed fixed bottom-0 inset-x-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur-sm sm:hidden">
+      <div className="grid safe-area-inset-bottom" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map((tab) => {
           const active = isActive(tab.href);
           return (
             <Link

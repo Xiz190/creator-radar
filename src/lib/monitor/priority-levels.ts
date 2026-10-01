@@ -49,6 +49,8 @@ export type PriorityLevelMeta = {
   level: PriorityLevel;
   /** 列表页/详情页标签显示文案 */
   label: string;
+  /** 英文界面的显示文案 */
+  labelEn: string;
   /** 较短形式（用于紧凑布局） */
   shortLabel: string;
   /** Tailwind className（浅色背景 + 深色文字，可直接用于 badge） */
@@ -67,6 +69,7 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
   "普通内容": {
     level: "普通内容",
     label: "普通",
+    labelEn: "Normal",
     shortLabel: "普通",
     className: "bg-slate-100 text-slate-500",
     color: "#94a3b8",
@@ -77,6 +80,7 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
   "中等重点": {
     level: "中等重点",
     label: "中等重点",
+    labelEn: "Medium",
     shortLabel: "中等",
     // 工作台优先级阶梯：普通/中等=中性收敛；颜色只留给"重点/核心"两档，且统一走领域色 --brand
     className: "bg-slate-100 text-slate-600",
@@ -88,6 +92,7 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
   "重点内容": {
     level: "重点内容",
     label: "重点内容",
+    labelEn: "Key",
     shortLabel: "重点",
     className: "bg-[var(--brand-tint)] text-[var(--brand)] font-medium",
     color: "#b23c17",
@@ -98,6 +103,7 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
   "核心关注": {
     level: "核心关注",
     label: "核心关注",
+    labelEn: "Core",
     shortLabel: "核心",
     className: "bg-[var(--brand)] text-white font-semibold",
     color: "#b23c17",

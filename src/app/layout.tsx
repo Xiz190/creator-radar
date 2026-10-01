@@ -7,6 +7,9 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { HandoffListener } from "@/components/handoff-listener";
+import { DemoModeGate } from "@/components/demo-mode-gate";
+import { CompanionHint } from "@/components/companion-hint";
+import { ViewportZoomWatcher } from "@/components/viewport-zoom-watcher";
 
 // 编辑台字体系统：衬线标题(Newsreader) + 无衬线正文(IBM Plex Sans) + 等宽数据(IBM Plex Mono)
 const serif = Newsreader({
@@ -58,9 +61,14 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col pb-16 sm:pb-0">
         <PrefsProvider>
           <NavigationProgress />
+          {/* 公开演示站：访客只读提示条（本地开发/作者登录后不渲染） */}
+          <DemoModeGate />
+          {/* 手机打开桌面站时提示有伴侣版（/m），可关闭，不强制跳转 */}
+          <CompanionHint />
           {children}
           <ChatbotWidget />
           <MobileBottomNav />
+          <ViewportZoomWatcher />
           {/* 手机端推过来的条目在这里弹出来。组件自己会在 /m 下返回 null */}
           <HandoffListener />
           <ServiceWorkerRegistration />
