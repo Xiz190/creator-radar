@@ -16,7 +16,8 @@ import { pickSourceName } from "@/lib/localized-fields";
  */
 export function FeedRow({ item, now }: { item: ContentItem; now: Date }) {
   const cat = primaryCategoryLabelEn(item);
-  const lens = hasLens(item);
+  // ✦ 只标「有视角的重点/核心」：现在几乎每条都有 lens，全标就等于没标
+  const spark = hasLens(item) && (item.importanceLevel === "核心关注" || item.importanceLevel === "重点内容");
   const read = item.isRead;
 
   return (
@@ -28,7 +29,7 @@ export function FeedRow({ item, now }: { item: ContentItem; now: Date }) {
         {cat ? (
           <span className="text-[11px] font-semibold tracking-[0.01em] text-slate-500">{cat}</span>
         ) : null}
-        {lens ? <Sparkles className="h-3 w-3 flex-none text-[var(--brand)]" aria-hidden /> : null}
+        {spark ? <Sparkles className="h-3 w-3 flex-none text-[var(--brand)]" aria-label="key" /> : null}
         {!read ? (
           <span
             className="ml-auto h-[7px] w-[7px] flex-none rounded-full bg-[var(--brand)]"

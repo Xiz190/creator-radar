@@ -73,7 +73,7 @@ export function ItemCard({
                 <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
                   关键词 {item.keywordScore}
                   {item.matchedKeywordCount && item.matchedKeywordCount > 0 ? (
-                    <span className="ml-1 text-violet-400">· {item.matchedKeywordCount}词</span>
+                    <span className="ml-1 text-slate-400">· {language === "en" ? `${item.matchedKeywordCount} keywords` : `${item.matchedKeywordCount}词`}</span>
                   ) : null}
                 </span>
               ) : null}

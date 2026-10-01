@@ -117,7 +117,7 @@ export default function CompanionSavedPage() {
                   </Link>
 
                   {note ? (
-                    <button
+                    <button data-owner-only
                       type="button"
                       onClick={() => setEditing(item)}
                       className="mt-[11px] flex w-full gap-2 rounded-[11px] bg-slate-100 px-[11px] py-[9px] text-left"
@@ -128,10 +128,10 @@ export default function CompanionSavedPage() {
                       <p className="text-[12.5px] leading-[1.46] text-slate-700">{note}</p>
                     </button>
                   ) : (
-                    <button
+                    <button data-owner-only
                       type="button"
                       onClick={() => setEditing(item)}
-                      className="mt-[11px] inline-flex items-center gap-[6px] rounded-[9px] border border-slate-200 px-[11px] py-[6px] text-[12.5px] font-semibold text-slate-500"
+                      className="mt-[9px] -ml-1 inline-flex min-h-[44px] items-center gap-[5px] px-1 text-[12.5px] font-medium text-slate-500"
                     >
                       <Plus className="h-[13px] w-[13px]" aria-hidden />
                       {t("companion.note.add")}

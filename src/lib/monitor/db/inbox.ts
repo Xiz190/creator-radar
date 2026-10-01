@@ -456,9 +456,13 @@ export async function getInboxItemsByFilter(params: {
         )::text as relevance_rank`
       : `'0'::text as relevance_rank`;
 
-  const sortMode = params.sort ?? "first_seen_at";
+  // 不传 sort = 默认的「重要性优先」；显式 first_seen_at = 真正按抓取时间倒序
+  // （此前两者共用一个分支，导致「最新发现」其实是重要性优先，首页取「最近 N 条」也取错）
+  const sortMode = params.sort;
   let orderClause: string;
-  if (sortMode === "published_at") {
+  if (sortMode === "first_seen_at") {
+    orderClause = `mi.first_seen_at desc, mi.list_published_at desc`;
+  } else if (sortMode === "published_at") {
     orderClause = `mi.list_published_at desc, mi.first_seen_at desc`;
   } else if (sortMode === "relevance") {
     if (qPlaceholder !== null) {
@@ -565,6 +569,14 @@ export async function getInboxItemsByFilter(params: {
       finalParams,
     );
 
+  // 这几列是 jsonb，pg 驱动取出来已经是对象/数组；旧代码对它 JSON.parse(String(...))，
+  // 必然失败 → 关键词数、体裁、信号强度全丢。
+  const asJson = (raw: unknown): unknown => {
+    if (raw == null) return null;
+    if (typeof raw !== "string") return raw;
+    try { return JSON.parse(raw); } catch { return null; }
+  };
+
   const items = res.rows.map((row) => {
     let cats: Array<{ category: string; score: number; topKeywords?: string[] }> = [];
     if (row.matched_categories) {
@@ -577,27 +589,15 @@ export async function getInboxItemsByFilter(params: {
       }
     }
     let genres: string[] = [];
-    if (row.matched_genres) {
-      try {
-        const parsed = JSON.parse(String(row.matched_genres));
-        if (Array.isArray(parsed)) genres = parsed.filter((x) => typeof x === "string");
-      } catch {}
-    }
+    const genresRaw = asJson(row.matched_genres);
+    if (Array.isArray(genresRaw)) genres = genresRaw.filter((x): x is string => typeof x === "string");
     let matchedKeywordCount: number | undefined;
-    if (row.matched_keywords) {
-      try {
-        const parsed = JSON.parse(String(row.matched_keywords));
-        if (Array.isArray(parsed)) matchedKeywordCount = parsed.length;
-      } catch {}
-    }
+    const keywordsRaw = asJson(row.matched_keywords);
+    if (Array.isArray(keywordsRaw)) matchedKeywordCount = keywordsRaw.length;
     let signalStrength: number | undefined;
-    if (row.signal_hits) {
-      try {
-        const parsed = JSON.parse(String(row.signal_hits));
-        if (parsed && typeof parsed === "object" && parsed._meta && typeof parsed._meta.totalSignalStrength === "number") {
-          signalStrength = parsed._meta.totalSignalStrength;
-        }
-      } catch {}
+    const hits = asJson(row.signal_hits) as { _meta?: { totalSignalStrength?: unknown } } | null;
+    if (hits && typeof hits === "object" && typeof hits._meta?.totalSignalStrength === "number") {
+      signalStrength = hits._meta.totalSignalStrength;
     }
     const toDateStr = (d: Date | string | null): string | null => {
       if (!d) return null;

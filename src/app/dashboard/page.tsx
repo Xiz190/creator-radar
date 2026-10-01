@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
+import { usePrefs } from "@/contexts/prefs-context";
+import { useT } from "@/lib/i18n";
+import { pickLens } from "@/lib/localized-fields";
+import { ImportanceBadge } from "@/components/importance-badge";
 import { SectionCard } from "@/components/section-card";
 import { categoryMeta, TOPIC_CATEGORIES, filterTopicCategories } from "@/lib/monitor/content-meta";
 import { formatDateShortNoPad } from "@/lib/date-utils";
@@ -19,7 +23,7 @@ type DashboardData = {
   importanceDistribution: { level: string; label: string; count: number; color: string }[];
   signalTrend: { dates: string[]; series: { key: string; label: string; color: string; values: number[] }[] };
   topKeywords: { keyword: string; category: string; count: number }[];
-  topHighlights?: { title: string; url: string; sourceId: string; lens: string; source: string; date: string; score: number; level: string }[];
+  topHighlights?: { title: string; url: string; sourceId: string; lens: string; lensEn?: string | null; source: string; date: string; score: number; level: string }[];
   hotTopics?: { keyword: string; important: number; normal: number; total: number }[];
   heatmapDaily?: { date: string; count: number }[];
 };
@@ -41,6 +45,7 @@ function EmptyHint({ text }: { text: string }) {
 }
 
 function HeatmapCalendar({ data }: { data: { date: string; count: number }[] }) {
+  const tr = useT(usePrefs().language);
   // 每日入库总量（来自独立的 170 天 heatmapDaily，覆盖 15 周网格）
   const byDate: Record<string, number> = {};
   for (const d of data) byDate[d.date] = (byDate[d.date] ?? 0) + d.count;
@@ -63,21 +68,22 @@ function HeatmapCalendar({ data }: { data: { date: string; count: number }[] }) 
       const key = cell.toISOString().slice(0, 10);
       const count = byDate[key] ?? 0;
       if (d === 0 && cell.getMonth() !== lastMonth) {
-        monthLabels.push({ label: `${cell.getMonth() + 1}月`, col: w });
+        monthLabels.push({ label: tr("dash.month", { m: cell.getMonth() + 1 }), col: w });
         lastMonth = cell.getMonth();
       }
-      cells.push({ date: key, count, label: `${key} · ${count} 条` });
+      cells.push({ date: key, count, label: `${key} · ${tr("inbox.count", { n: count })}` });
     }
   }
 
   const maxCount = Math.max(1, ...cells.map((c) => c.count));
   function cellColor(count: number) {
-    if (count === 0) return "#f1f5f9"; // slate-100
+    if (count === 0) return "var(--muted)";
     const intensity = count / maxCount;
-    if (intensity < 0.25) return "#bbf7d0"; // emerald-200
-    if (intensity < 0.5) return "#4ade80"; // emerald-400
-    if (intensity < 0.75) return "#16a34a"; // emerald-600
-    return "#14532d"; // emerald-900
+    // 单色阶：与全站唯一强调色一致（原为绿色，会被读成「成功/正常」）
+    if (intensity < 0.25) return "var(--brand-200)";
+    if (intensity < 0.5) return "var(--brand-400)";
+    if (intensity < 0.75) return "var(--brand-600)";
+    return "var(--brand-800)";
   }
 
   const GAP = 3;
@@ -85,7 +91,7 @@ function HeatmapCalendar({ data }: { data: { date: string; count: number }[] }) 
   const W = WEEKS * (CELL + GAP);
   const H = 7 * (CELL + GAP) + 18;
 
-  if (cells.length === 0) return <EmptyHint text="暂无历史数据" />;
+  if (cells.length === 0) return <EmptyHint text={tr("dash.no-history")} />;
 
   return (
     <div className="overflow-x-auto">
@@ -114,11 +120,11 @@ function HeatmapCalendar({ data }: { data: { date: string; count: number }[] }) 
         })}
       </svg>
       <div className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400">
-        <span>少</span>
-        {["#f1f5f9", "#bbf7d0", "#4ade80", "#16a34a", "#14532d"].map((c) => (
+        <span>{tr("dash.less")}</span>
+        {["var(--muted)", "var(--brand-200)", "var(--brand-400)", "var(--brand-600)", "var(--brand-800)"].map((c) => (
           <span key={c} className="inline-block h-2.5 w-2.5 rounded-[2px]" style={{ backgroundColor: c }} />
         ))}
-        <span>多</span>
+        <span>{tr("dash.more")}</span>
       </div>
     </div>
   );
@@ -129,8 +135,9 @@ function DepartmentBarChart({
 }: {
   data: { departmentName: string; total: number; todayCount: number; series: { date: string; count: number }[] }[];
 }) {
+  const tr = useT(usePrefs().language);
   if (data.length === 0) {
-    return <EmptyHint text="近 7 天暂无来源更新数据" />;
+    return <EmptyHint text={tr("dash.no-7d")} />;
   }
   const top = data.slice(0, 12);
   const max = Math.max(1, ...top.map((d) => d.total));
@@ -148,7 +155,7 @@ function DepartmentBarChart({
                 {d.departmentName}
               </span>
               <span className="shrink-0 text-slate-500">
-                近 7 日 {d.total} <span className="text-slate-300">·</span> 今日 {d.todayCount}
+                {tr("dash.7d")} {d.total} <span className="text-slate-300">·</span> {tr("dash.today")} {d.todayCount}
               </span>
             </div>
             <div className="mt-1 flex items-center gap-2">
@@ -176,7 +183,8 @@ function DepartmentBarChart({
                 }).join(" ");
                 const last = pts[pts.length - 1].count;
                 const prev = pts[pts.length - 2].count;
-                const color = last > prev ? "#f59e0b" : last < prev ? "#64748b" : "#94a3b8";
+                // 走势只是更新量的起伏，没有好坏之分：上升用品牌色，下降/持平用中性灰（原为琥珀色）
+                const color = last > prev ? "var(--brand)" : last < prev ? "var(--muted-foreground)" : "var(--border)";
                 return (
                   <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 opacity-70">
                     <polyline points={coords} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -188,15 +196,16 @@ function DepartmentBarChart({
         );
       })}
       <div className="pt-1 text-[11px] text-slate-400">
-        <span className="inline-block h-2 w-2 rounded-full align-middle" style={{ background: "color-mix(in srgb, var(--brand) 22%, white)" }} /> 近 7 日
-        <span className="ml-3 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--brand)" }} /> 今日更新
+        <span className="inline-block h-2 w-2 rounded-full align-middle" style={{ background: "color-mix(in srgb, var(--brand) 22%, white)" }} /> {tr("dash.7d-legend")}
+        <span className="ml-3 inline-block h-2 w-2 rounded-full align-middle" style={{ background: "var(--brand)" }} /> {tr("dash.today-updates")}
       </div>
     </div>
   );
 }
 
-function InsightLabel({ text, tone = "info" }: { text: string; tone?: "success" | "warning" | "danger" | "info" }) {
+function InsightLabel({ text, tone = "info" }: { text: string; tone?: "success" | "warning" | "danger" | "info" | "brand" }) {
   const styles: Record<string, string> = {
+    brand: "bg-[var(--brand-tint)] text-[var(--brand)]",
     success: "bg-emerald-100 text-emerald-700",
     warning: "bg-amber-100 text-amber-700",
     danger: "bg-rose-100 text-rose-700",
@@ -217,6 +226,7 @@ function detailHref(it: { sourceId: string; url: string }) {
 }
 
 function SourceLink({ url }: { url: string }) {
+  const tr = useT(usePrefs().language);
   return (
     <a
       href={url}
@@ -224,30 +234,32 @@ function SourceLink({ url }: { url: string }) {
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
       className="shrink-0 text-[11px] text-slate-400 transition hover:text-[var(--brand)]"
-      title="查看原文（站外）"
+      title={tr("dash.original-title")}
     >
-      原文 ↗
+      {tr("dash.original")}
     </a>
   );
 }
 
 function TopHighlights({ items }: { items: NonNullable<DashboardData["topHighlights"]> }) {
+  const { language } = usePrefs();
+  const tr = useT(language);
+  const lensOf = (it: { lens: string; lensEn?: string | null }) => pickLens({ creatorLens: it.lens, creatorLensEn: it.lensEn }, language);
   if (items.length === 0) return null;
   const lead = items[0];
   const rest = items.slice(1);
   return (
     <div className="mb-6">
       <div className="mb-3 flex items-center gap-2">
-        <span className="h-3.5 w-1 rounded-sm bg-[var(--brand)]" aria-hidden />
-        <h2 className="text-sm font-semibold text-slate-900">近期最重点</h2>
-        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">{items.length} 条 · 已解读</span>
-        <span className="ml-auto text-[11px] text-slate-400">点标题看完整解读 · 原文 ↗ 跳来源</span>
+        <h2 className="text-sm font-semibold text-slate-900">{tr("dash.top.title")}</h2>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">{tr("dash.top.count", { n: items.length })}</span>
+        <span className="ml-auto text-[11px] text-slate-400">{tr("dash.top.hint")}</span>
       </div>
 
       {/* 头条大卡：主体点进站内详情页（完整解读），右上「原文↗」跳站外 */}
       <div className="rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand)]/[0.04] p-5 transition hover:border-[var(--brand)]/45">
         <div className="flex items-center gap-2 text-[11px] text-slate-500">
-          {lead.level && <InsightLabel text={lead.level} tone="warning" />}
+          {lead.level && <ImportanceBadge level={lead.level} className="text-[11px]" />}
           <span>{lead.source}</span>
           <span className="text-slate-300">·</span>
           <span>{lead.date}</span>
@@ -255,8 +267,8 @@ function TopHighlights({ items }: { items: NonNullable<DashboardData["topHighlig
         </div>
         <Link href={detailHref(lead)} className="group mt-1.5 block">
           <h3 className="font-serif text-base font-semibold leading-snug text-slate-900 group-hover:underline">{lead.title}</h3>
-          {lead.lens && <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{lead.lens}</p>}
-          <span className="mt-2 inline-flex items-center text-xs font-medium text-[var(--brand)] group-hover:underline">查看完整解读 →</span>
+          {lensOf(lead) && <p className="mt-2 font-serif text-lg leading-snug text-[var(--brand)]">{lensOf(lead)}</p>}
+          <span className="mt-2 inline-flex items-center text-xs font-medium text-[var(--brand)] group-hover:underline">{tr("dash.top.read")}</span>
         </Link>
       </div>
 
@@ -270,7 +282,7 @@ function TopHighlights({ items }: { items: NonNullable<DashboardData["topHighlig
                   <span className="truncate text-sm font-medium text-slate-800 hover:underline">{it.title}</span>
                   <span className="ml-auto shrink-0 text-[11px] text-slate-400">{it.source} · {it.date}</span>
                 </div>
-                {it.lens && <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{it.lens}</p>}
+                {lensOf(it) && <p className="mt-0.5 line-clamp-1 font-serif text-[13px] text-[var(--brand)]">{lensOf(it)}</p>}
               </Link>
               <SourceLink url={it.url} />
             </div>
@@ -284,17 +296,17 @@ function TopHighlights({ items }: { items: NonNullable<DashboardData["topHighlig
 // 「热点话题」：具名的工具/品牌话题（可点→筛选收件箱），每行一条 重点↔普通 堆叠条，
 // 直接可视化"这个话题在重点内容和普通内容里各占多少 = 有没有衔接"。
 function HotTopics({ items }: { items: NonNullable<DashboardData["hotTopics"]> }) {
+  const tr = useT(usePrefs().language);
   if (items.length === 0) return null;
   const max = Math.max(1, ...items.map((t) => t.total));
   return (
     <div className="mb-6">
       <div className="mb-3 flex items-center gap-2">
-        <span className="h-3.5 w-1 rounded-sm bg-[var(--brand)]" aria-hidden />
-        <h2 className="text-sm font-semibold text-slate-900">热点话题</h2>
-        <span className="text-[11px] text-slate-400">· 点击进入相关动态</span>
+        <h2 className="text-sm font-semibold text-slate-900">{tr("dash.hot.title")}</h2>
+        <span className="text-[11px] text-slate-400">· {tr("dash.hot.hint")}</span>
         <span className="ml-auto flex items-center gap-3 text-[11px] text-slate-500">
-          <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "var(--brand)" }} />重点</span>
-          <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-200" />普通</span>
+          <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "var(--brand)" }} />{tr("importance.label.key")}</span>
+          <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-200" />{tr("importance.label.normal")}</span>
         </span>
       </div>
       <div className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-5">
@@ -312,9 +324,9 @@ function HotTopics({ items }: { items: NonNullable<DashboardData["hotTopics"]> }
                 <div className="h-full bg-slate-200 transition-all" style={{ width: `${norPct}%` }} />
               </div>
               <span className="w-28 shrink-0 text-right text-[11px] tabular-nums text-slate-500">
-                {t.important > 0 && <span className="font-semibold text-[var(--brand)]">{t.important} 重点</span>}
+                {t.important > 0 && <span className="font-semibold text-[var(--brand)]">{t.important} {tr("importance.label.key")}</span>}
                 {bridged && <span className="text-slate-300"> · </span>}
-                <span>{t.normal} 普通</span>
+                {(t.normal > 0 || t.important === 0) && <span>{t.normal} {tr("importance.label.normal")}</span>}
               </span>
             </Link>
           );
@@ -325,6 +337,8 @@ function HotTopics({ items }: { items: NonNullable<DashboardData["hotTopics"]> }
 }
 
 export default function DashboardPage() {
+  const { language } = usePrefs();
+  const tr = useT(language);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [forceCollapsed, setForceCollapsed] = useState<boolean | undefined>(undefined);
@@ -353,7 +367,7 @@ export default function DashboardPage() {
         if (err.name === "AbortError" || err.message.includes("ERR_ABORTED")) {
           return;
         }
-        setError(err.message ?? "加载失败");
+        setError(err.message ?? tr("dash.load-failed"));
       } finally {
         if (!abortController.signal.aborted) {
           setLoading(false);
@@ -389,12 +403,12 @@ export default function DashboardPage() {
     const fastest = [...withGrowth].sort((a, b) => b.growth.change - a.growth.change)[0];
     if (fastest && fastest.growth.change > 10) {
       return {
-        text: `增速最快：${fastest.departmentName} 环比 ${fastest.growth.change > 0 ? "+" : ""}${Math.round(fastest.growth.change)}%`,
-        tone: "warning" as const,
+        text: tr("dash.fastest", { name: fastest.departmentName, pct: `${fastest.growth.change > 0 ? "+" : ""}${Math.round(fastest.growth.change)}` }),
+        tone: "brand" as const,
       };
     }
     const top = data.departmentStats[0];
-    return { text: `最活跃：${top.departmentName}（近 7 日 ${top.total} 条）`, tone: "info" as const };
+    return { text: tr("dash.most-active", { name: top.departmentName, n: top.total }), tone: "info" as const };
   }, [data]);
 
 
@@ -451,22 +465,22 @@ export default function DashboardPage() {
       <div className="mx-auto w-full max-w-7xl px-6 py-8">
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">数据洞察</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{tr("dash.title")}</h1>
             <p className="mt-2 text-sm text-slate-600">
-              近 {data?.periodDays ?? days} 天动态趋势分析、关键变化与值得关注的发现
+              {tr("dash.subtitle", { n: data?.periodDays ?? days })}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
               {lastRefreshedAt && (
-                <span className="text-[11px] text-slate-400">上次 {lastRefreshedAt}</span>
+                <span className="text-[11px] text-slate-400">{tr("dash.last", { t: lastRefreshedAt })}</span>
               )}
               <button
                 type="button"
                 onClick={() => setRefreshKey((k) => k + 1)}
                 disabled={loading}
                 className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
-                title="刷新数据"
+                title={tr("dash.refresh")}
               >
                 <span className={loading ? "animate-spin inline-block" : ""}>⟳</span>
               </button>
@@ -485,7 +499,7 @@ export default function DashboardPage() {
                     URL.revokeObjectURL(a.href);
                   }}
                   className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-                  title="导出数据快照 JSON"
+                  title={tr("dash.export")}
                 >
                   ↓
                 </button>
@@ -495,9 +509,9 @@ export default function DashboardPage() {
               type="button"
               onClick={() => setForceCollapsed((v) => (v === true ? undefined : true))}
               className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-              title={forceCollapsed === true ? "各区块已折叠" : "全部折叠"}
+              title={forceCollapsed === true ? tr("dash.all-collapsed") : tr("dash.collapse-all")}
             >
-              {forceCollapsed === true ? "↓ 全部展开" : "↑ 全部折叠"}
+              {forceCollapsed === true ? tr("dash.expand-all") : tr("dash.collapse-all")}
             </button>
             <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
               {([7, 14, 30] as const).map((d) => (
@@ -511,7 +525,7 @@ export default function DashboardPage() {
                       : "text-slate-500 hover:bg-slate-100"
                   }`}
                 >
-                  {d} 天
+                  {tr("dash.days", { n: d })}
                 </button>
               ))}
             </div>
@@ -571,7 +585,7 @@ export default function DashboardPage() {
           </div>
         ) : error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            数据加载失败：{error}
+            {tr("dash.error")}{error}
           </div>
         ) : data ? (
           <>
@@ -581,10 +595,10 @@ export default function DashboardPage() {
 
             {/* 活动带：记账指标（收录量/未读/星标/本周新增/热力图）统一并入这一张卡 */}
             <SectionCard
-              title="入库活动"
+              title={tr("dash.activity")}
               collapsible storageKey="ingest-activity"
               forceCollapsed={forceCollapsed}
-              rightSlot={<span className="text-[11px] text-slate-400">近 15 周</span>}
+              rightSlot={<span className="text-xs text-slate-500">{tr("dash.15w")}</span>}
               bodyClassName="p-5"
               className="mt-6"
             >
@@ -611,36 +625,36 @@ export default function DashboardPage() {
                       </div>
                       <div className="mt-6 grid grid-cols-2 gap-x-10 gap-y-4">
                         <div>
-                          <div className="text-[11px] text-slate-400">收录总量</div>
+                          <div className="text-[11px] text-slate-400">{tr("dash.stat.total")}</div>
                           <div className="mt-0.5 font-serif text-lg font-bold tabular-nums text-slate-900">{data.counts.total}</div>
                         </div>
                         <div>
-                          <div className="text-[11px] text-slate-400">未读 / 已标星</div>
+                          <div className="text-[11px] text-slate-400">{tr("dash.stat.unread-starred")}</div>
                           <div className="mt-0.5 font-semibold tabular-nums text-slate-600">{data.counts.unread} / {data.counts.starred}</div>
                         </div>
                         <div>
-                          <div className="text-[11px] text-slate-400">本周新增</div>
+                          <div className="text-[11px] text-slate-400">{tr("dash.stat.week")}</div>
                           <div className="mt-0.5 flex items-baseline gap-2">
                             <span className="font-semibold tabular-nums text-slate-900">{thisWeek}</span>
                             {lastWeek > 0 && (
-                              <span className={`text-[11px] font-semibold ${up ? "text-emerald-600" : "text-rose-600"}`}>{up ? "↑" : "↓"}{Math.abs(pct)}%</span>
+                              <span className={`text-[11px] font-semibold ${up ? "text-[var(--brand)]" : "text-slate-500"}`}>{up ? "↑" : "↓"}{Math.abs(pct)}%</span>
                             )}
                           </div>
                         </div>
                         <div>
-                          <div className="text-[11px] text-slate-400">日均本周</div>
+                          <div className="text-[11px] text-slate-400">{tr("dash.stat.daily")}</div>
                           <div className="mt-0.5 font-semibold tabular-nums text-slate-700">{(thisWeek / 7).toFixed(1)}</div>
                         </div>
                         {topSource && (
                           <div className="min-w-0">
-                            <div className="text-[11px] text-slate-400">内容最多</div>
+                            <div className="text-[11px] text-slate-400">{tr("dash.stat.top-source")}</div>
                             <div className="mt-0.5 truncate font-semibold text-slate-800" title={topSource.departmentName}>
                               {topSource.departmentName} <span className="font-normal text-slate-400">{topSource.total}</span>
                             </div>
                           </div>
                         )}
                         <div>
-                          <div className="text-[11px] text-slate-400">高优先级占比</div>
+                          <div className="text-[11px] text-slate-400">{tr("dash.stat.priority")}</div>
                           <div className="mt-0.5 font-semibold tabular-nums text-[var(--brand)]">{highPct.toFixed(1)}%</div>
                         </div>
                       </div>
@@ -648,7 +662,7 @@ export default function DashboardPage() {
                     {/* 右：各来源更新量（填满剩余宽度，原独立卡并入此处） */}
                     <div className="min-w-0 flex-1">
                       <div className="mb-3 flex items-center gap-2">
-                        <span className="text-xs font-semibold text-slate-700">各来源更新量</span>
+                        <span className="text-xs font-semibold text-slate-700">{tr("dash.by-source")}</span>
                         {departmentInsight && <InsightLabel text={departmentInsight.text} tone={departmentInsight.tone} />}
                         <span className="ml-auto text-[11px] text-slate-400">Top 12</span>
                       </div>
@@ -660,7 +674,7 @@ export default function DashboardPage() {
             </SectionCard>
 
             <SectionCard
-              title="与我相关的趋势"
+              title={tr("dash.mine")}
               collapsible storageKey="personalized-trends"
               forceCollapsed={forceCollapsed}
               rightSlot={
@@ -668,19 +682,19 @@ export default function DashboardPage() {
                   href="/subscribe"
                   className="inline-flex items-center gap-1 text-[11px] text-slate-500 transition hover:text-slate-700"
                 >
-                  {hasSubscription ? "管理关注" : "去设置"} →
+                  {hasSubscription ? tr("dash.manage") : tr("dash.setup")} →
                 </a>
               }
               bodyClassName="p-5"
             >
               {!hasSubscription ? (
-                <EmptyHint text="还没有设置关注，添加你关注的来源和关键词后，这里将展示个性化趋势" />
+                <EmptyHint text={tr("dash.mine-empty")} />
               ) : !personalizedTrends || (
                 personalizedTrends.followedDepartmentStats.length === 0 &&
                 personalizedTrends.followedKeywordStats.length === 0 &&
                 personalizedTrends.followedCategoryStats.length === 0
               ) ? (
-                <EmptyHint text="暂无与你关注项匹配的数据，建议调整关注范围" />
+                <EmptyHint text={tr("dash.mine-none")} />
               ) : (
                 <div className="space-y-6">
                   {/* 命中概览 + 查看相关动态（原「我的关注今日命中」卡并入此处） */}
@@ -690,12 +704,12 @@ export default function DashboardPage() {
                     const kwHits = personalizedTrends.followedKeywordStats.length;
                     return (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 text-sm">
-                        <span className="text-slate-700">今日命中 <strong className="text-[var(--brand)]">{todayHits}</strong> 条</span>
+                        <span className="text-slate-700">{tr("dash.hits.today")} <strong className="text-[var(--brand)]">{todayHits}</strong></span>
                         <span className="text-slate-300">·</span>
-                        <span className="text-slate-700">近 7 日 <strong className="text-slate-800">{weekHits}</strong> 条</span>
+                        <span className="text-slate-700">{tr("dash.hits.week")} <strong className="text-slate-800">{weekHits}</strong></span>
                         <span className="text-slate-300">·</span>
-                        <span className="text-slate-700">关键词命中 <strong className="text-slate-800">{kwHits}</strong> 个</span>
-                        <a href="/inbox?onlyFollowed=1" className="ml-auto text-xs font-medium text-[var(--brand)] hover:underline">查看相关动态 →</a>
+                        <span className="text-slate-700">{tr("dash.hits.kw")} <strong className="text-slate-800">{kwHits}</strong></span>
+                        <a href="/inbox?onlyFollowed=1" className="ml-auto text-xs font-medium text-[var(--brand)] hover:underline">{tr("dash.see-related")}</a>
                       </div>
                     );
                   })()}
@@ -703,9 +717,9 @@ export default function DashboardPage() {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <span className="text-sm"></span>
-                        <span className="text-xs font-semibold text-slate-900">我关注的来源更新</span>
+                        <span className="text-xs font-semibold text-slate-900">{tr("dash.my-sources")}</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
-                          {personalizedTrends.followedDepartmentStats.length} 个
+                          {personalizedTrends.followedDepartmentStats.length}
                         </span>
                       </div>
                       <div className="space-y-2">
@@ -718,7 +732,7 @@ export default function DashboardPage() {
                                   {d.departmentName}
                                 </span>
                                 <span className="shrink-0 text-slate-500">
-                                  近 7 日 {d.total} <span className="text-slate-300">·</span> 今日 {d.todayCount}
+                                  {tr("dash.7d")} {d.total} <span className="text-slate-300">·</span> {tr("dash.today")} {d.todayCount}
                                 </span>
                               </div>
                               <div className="mt-1 flex items-center gap-2">
@@ -740,9 +754,9 @@ export default function DashboardPage() {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <span className="text-sm"></span>
-                        <span className="text-xs font-semibold text-slate-900">我关注的关键词命中</span>
+                        <span className="text-xs font-semibold text-slate-900">{tr("insight.followed-keywords")}</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
-                          {personalizedTrends.followedKeywordStats.length} 个
+                          {personalizedTrends.followedKeywordStats.length}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -757,7 +771,7 @@ export default function DashboardPage() {
                                 color: meta.color,
                                 background: `${meta.color}14`,
                               }}
-                              title={`${k.keyword} · ${meta.label} · ${k.count} 次 · 点击查看命中`}
+                              title={`${k.keyword} · ${meta.label} · ${k.count}`}
                             >
                               {k.keyword}
                               <span className="ml-1 text-[10px] text-slate-400">{k.count}</span>
@@ -772,9 +786,9 @@ export default function DashboardPage() {
                     <div>
                       <div className="mb-3 flex items-center gap-2">
                         <span className="text-sm"></span>
-                        <span className="text-xs font-semibold text-slate-900">我关注的分类热度</span>
+                        <span className="text-xs font-semibold text-slate-900">{tr("dash.my-categories")}</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
-                          {personalizedTrends.followedCategoryStats.length} 个
+                          {personalizedTrends.followedCategoryStats.length}
                         </span>
                       </div>
                       <div className="space-y-2">
@@ -790,7 +804,7 @@ export default function DashboardPage() {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between text-xs">
                                   <span className="font-medium text-slate-700">{c.label}</span>
-                                  <span className="text-slate-500">{c.count} 次</span>
+                                  <span className="text-slate-500">{c.count}</span>
                                 </div>
                                 <div className="mt-0.5 h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                                   <div

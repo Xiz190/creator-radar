@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   LOCAL_DATA_NOTICE,
   getLocalDataNoticeDismissed,
   setLocalDataNoticeDismissed,
+  getLocalDataNoticeSeen,
+  setLocalDataNoticeSeen,
   type LocalDataNoticeVariant,
 } from "@/lib/local-data-notice";
+import { usePrefs } from "@/contexts/prefs-context";
 import { Package, Save } from "lucide-react";
 
 export interface LocalDataNoticeProps {
@@ -109,6 +112,8 @@ export function LocalDataNotice({
   }, [autoDismissState]);
 
   const [visible, setVisible] = useState(initiallyVisible);
+  const { language } = usePrefs();
+  const en = language === "en";
   const styles = variantStyles[variant];
   // 大写：小写 icon 在 JSX 里会被当成 HTML 标签
   const Icon = LOCAL_DATA_NOTICE.icon[variant];
@@ -194,14 +199,14 @@ export function LocalDataNotice({
       <div className={`${styles.wrapper} ${className}`} role="status">
         <span className={styles.icon}><Icon className="h-3.5 w-3.5" aria-hidden /></span>
         <span className={styles.desc}>
-          {customText || LOCAL_DATA_NOTICE.title}，
+          {customText || LOCAL_DATA_NOTICE.title}{en ? ". " : "，"}
           {showSecondaryAction && (
             secondaryActionHref ? (
               <a
                 href={secondaryActionHref}
                 className={`ml-1 ${styles.secondaryBtn}`}
               >
-                {LOCAL_DATA_NOTICE.secondaryActionText}
+                {en ? LOCAL_DATA_NOTICE.secondaryActionTextEn : LOCAL_DATA_NOTICE.secondaryActionText}
               </a>
             ) : (
               <button
@@ -209,7 +214,7 @@ export function LocalDataNotice({
                 onClick={onSecondaryAction}
                 className={`ml-1 ${styles.secondaryBtn}`}
               >
-                {LOCAL_DATA_NOTICE.secondaryActionText}
+                {en ? LOCAL_DATA_NOTICE.secondaryActionTextEn : LOCAL_DATA_NOTICE.secondaryActionText}
               </button>
             )
           )}
@@ -289,26 +294,51 @@ export interface FirstTimeGuideModalProps {
 
 export function FirstTimeGuideModal({ onClose }: FirstTimeGuideModalProps) {
   const router = useRouter();
-  const [visible, setVisible] = useState(true);
+  const { language } = usePrefs();
+  // 默认不显示：确认「没看过」且「不是公开演示站的访客」后才弹，避免首屏闪一下
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (getLocalDataNoticeSeen()) return;
+    let cancelled = false;
+    // 演示站访客改不了设置，这条提示对他们没意义（顶部已有只读提示条）
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me: { demo?: boolean; owner?: boolean } | null) => {
+        if (!cancelled && !(me?.demo && !me.owner)) setVisible(true);
+      })
+      .catch(() => {
+        if (!cancelled) setVisible(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const dismiss = () => {
+    setLocalDataNoticeSeen();
+    setVisible(false);
+  };
 
   const handleClose = () => {
-    setVisible(false);
+    dismiss();
     onClose?.();
   };
 
   const handlePrimary = () => {
-    setVisible(false);
+    dismiss();
     onClose?.();
   };
 
   const handleSecondary = () => {
-    setVisible(false);
+    dismiss();
     router.push("/subscribe");
   };
 
   if (!visible) return null;
 
-  const firstTime = LOCAL_DATA_NOTICE.firstTime;
+  const firstTime =
+    language === "en" ? LOCAL_DATA_NOTICE.firstTimeEn : LOCAL_DATA_NOTICE.firstTime;
 
   return (
     <div
@@ -330,7 +360,7 @@ export function FirstTimeGuideModal({ onClose }: FirstTimeGuideModalProps) {
           type="button"
           onClick={handleClose}
           className="absolute right-4 top-4 text-slate-400 transition hover:text-slate-600"
-          aria-label="关闭"
+          aria-label={language === "en" ? "Close" : "关闭"}
         >
           ×
         </button>

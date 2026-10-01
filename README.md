@@ -2,6 +2,8 @@
 
 > **Radar** 框架的创作者实例 —— 一个给独立创作者的 AI 情报台：抓取 AI 工具与行业动态，用「创作者雷达」把每条翻译成「这对我做音乐 / 做 MV 意味着什么」。
 
+**在线演示**：<https://creator-radar-xiz.vercel.app>（演示模式：访客可浏览、搜索、使用问答助手；写操作与管理后台仅作者可用） 手机伴侣版：[/m](https://creator-radar-xiz.vercel.app/m)。
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.x-black)](https://nextjs.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4.x-teal)](https://tailwindcss.com/)
@@ -34,7 +36,7 @@ Creator Radar 把「找 → 核实 → 关联 → 分析」这条情报工作流
 
 ## 真实数据
 
-**15 个活跃源、917 条真实数据**（截至 2026-09-25），全部来自公开接口 / 公开 RSS / 公开网页：
+**15 个活跃源、1123 条真实数据**（截至 2026-10-01，线上每 6 小时自动增长），全部来自公开接口 / 公开 RSS / 公开网页：
 
 | 类型 | 源 |
 |---|---|
@@ -71,7 +73,7 @@ Creator Radar 把「找 → 核实 → 关联 → 分析」这条情报工作流
 | 数据库 | PostgreSQL 16 |
 | 样式 | Tailwind CSS 4 |
 | AI | DeepSeek（OpenAI 兼容协议） |
-| 测试 | Vitest（820 个用例） |
+| 测试 | Vitest（847 个用例） |
 
 ---
 

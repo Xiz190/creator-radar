@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { getCategoryStyle } from "@/lib/monitor/content-meta";
+import { categoryDisplayLabel, getCategoryStyle } from "@/lib/monitor/content-meta";
+import { usePrefs } from "@/contexts/prefs-context";
 import { RichTooltip } from "@/components/rich-tooltip";
 
 // 分类标签（胶囊）
@@ -15,10 +16,11 @@ export function CategoryBadge({
   topKeywords?: string[];
 }) {
   const style = getCategoryStyle(category);
+  const { language } = usePrefs();
   return (
     <RichTooltip style={style}>
       <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${style.chip}`}>
-        <span className="font-medium">{style.displayLabel}</span>
+        <span className="font-medium">{categoryDisplayLabel(category, language)}</span>
         <span className="text-[11px] opacity-75">({score})</span>
         {topKeywords && topKeywords.length > 0 ? (
           <span className="text-[11px] opacity-80">{topKeywords.slice(0, 2).join(" / ")}</span>

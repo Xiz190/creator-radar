@@ -1,3 +1,5 @@
+import { isGenericKeyword } from "@/lib/monitor/generic-keywords";
+
 /**
  * 正文里的关键词命中切分。纯函数，便于单测
  * （项目 vitest 无 jsdom，渲染不了组件——同 nav.ts / today.ts / feed.ts）。
@@ -55,5 +57,5 @@ export function segmentByKeywords(text: string, keywords: string[]): TextSegment
 
 /** 从 matchedKeywords 里取出关键词字符串数组。 */
 export function keywordStrings(matched: Array<{ keyword?: string }> | undefined): string[] {
-  return (matched ?? []).map((m) => (m.keyword ?? "").trim()).filter(Boolean);
+  return (matched ?? []).map((m) => (m.keyword ?? "").trim()).filter((k) => k && !isGenericKeyword(k));
 }

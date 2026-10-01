@@ -45,13 +45,19 @@ export function pickRanked(items: ContentItem[], limit = 4): ContentItem[] {
     .slice(0, limit);
 }
 
-/** Today 顶部的 "N unread · M key today" */
-export function summarize(items: ContentItem[]): { unread: number; key: number } {
-  let unread = 0;
+/**
+ * Today 顶部的 "N new · M key in the last 24h"。
+ * 与桌面首页同一口径：按抓取时间（firstSeenAt）数近 24 小时新增，以及其中的重点。
+ * （原先是「已加载这批里的未读 / 重点」，却标成 "key today"，数字和桌面对不上）
+ */
+export function summarize(items: ContentItem[], now: Date = new Date()): { fresh: number; key: number } {
+  const since = now.getTime() - 24 * 60 * 60 * 1000;
+  let fresh = 0;
   let key = 0;
   for (const i of items) {
-    if (!i.isRead) unread++;
+    if (!i.firstSeenAt || new Date(i.firstSeenAt).getTime() < since) continue;
+    fresh++;
     if (levelRank(i) >= KEY_THRESHOLD) key++;
   }
-  return { unread, key };
+  return { fresh, key };
 }

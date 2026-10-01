@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { CategoryStyle } from "@/lib/monitor/content-meta";
+import { localizeCategoryStyle, type CategoryStyle } from "@/lib/monitor/content-meta";
+import { usePrefs } from "@/contexts/prefs-context";
 import {
   Lightbulb,
 } from "lucide-react";
@@ -11,8 +12,10 @@ type RichTooltipProps = {
   children: React.ReactNode;
 };
 
-export function RichTooltip({ style, children }: RichTooltipProps) {
+export function RichTooltip({ style: rawStyle, children }: RichTooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const { language } = usePrefs();
+  const style = localizeCategoryStyle(rawStyle, language);
 
   if (!style.description && !style.value) {
     return <span title={style.tooltip || style.displayLabel}>{children}</span>;
@@ -40,7 +43,7 @@ export function RichTooltip({ style, children }: RichTooltipProps) {
               )}
               {style.value && (
                 <p className="mt-2 rounded-lg bg-slate-50 p-2 text-slate-600">
-                  <span className="inline-flex items-center gap-1 font-medium"><Lightbulb className="h-3.5 w-3.5" aria-hidden />对你的意义：</span>
+                  <span className="inline-flex items-center gap-1 font-medium"><Lightbulb className="h-3.5 w-3.5" aria-hidden />{language === "en" ? "Why it matters: " : "对你的意义："}</span>
                   {style.value}
                 </p>
               )}

@@ -9,6 +9,8 @@ import { WeeklyDigestModal } from "@/components/weekly-digest-modal";
 import { ImportanceBadge } from "@/components/importance-badge";
 import { SubscriptionBadge } from "@/components/subscription-badge";
 import { SignalsSkeleton } from "@/components/signals-skeleton";
+import { usePrefs } from "@/contexts/prefs-context";
+import { pickLens } from "@/lib/localized-fields";
 import {
   SIGNAL_CATEGORIES,
   TOPIC_CATEGORIES,
@@ -48,6 +50,8 @@ type SignalItem = {
   hasStandards?: boolean;
   isStarred?: boolean;
   isRead?: boolean;
+  creatorLens?: string | null;
+  creatorLensEn?: string | null;
 };
 
 const SIGNAL_ORDER = [
@@ -66,12 +70,16 @@ const SIGNAL_VALUE_DESC: Record<string, string> = {
   "平台政策/版权": "流媒体平台规则、AI生成内容版权条款",
 };
 
+const SIGNAL_VALUE_DESC_EN: Record<string, string> = {
+  "A·AI工具更新": "New features, pricing and releases from Suno / Runway / HeyGen / Pika",
+  "B·创作机会": "Contests, residencies, label calls and grants",
+  "C·申报截止预警": "Heads-up when application or submission deadlines are close",
+  "D·行业观察": "Streaming data, market reports and AI music trends",
+  "平台政策/版权": "Streaming platform rules and copyright terms for AI content",
+};
+
 type SortMode = "signalStrength" | "firstSeen" | "priority";
 
-function summarizeTitle(title: string, maxLen = 56): string {
-  if (title.length <= maxLen) return title;
-  return title.slice(0, maxLen) + "…";
-}
 
 function formatDate(iso: string): string {
   if (!iso) return "";
@@ -151,6 +159,8 @@ function useSignalItems(region: "all" | "domestic" | "global") {
             hasStandards: Boolean(raw.hasStandards),
             isStarred: Boolean(raw.isStarred),
             isRead: Boolean(raw.isRead),
+            creatorLens: (raw.creatorLens as string | undefined) || null,
+            creatorLensEn: (raw.creatorLensEn as string | undefined) || null,
           }));
           setItems(list);
           setDbAvailable(true);
@@ -203,6 +213,8 @@ function useSignalItems(region: "all" | "domestic" | "global") {
 export default function SignalsPage() {
   const [region, setRegion] = useState<"all" | "domestic" | "global">("all");
   const [signalQ, setSignalQ] = useState("");
+  const { language } = usePrefs();
+  const en = language === "en";
   const { items, loading, isFetching, dbAvailable } = useSignalItems(region);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [newBanner, setNewBanner] = useState(0);
@@ -327,12 +339,12 @@ export default function SignalsPage() {
     }
     return SIGNAL_ORDER.map((cat) => ({
       category: cat,
-      displayLabel: categoryDisplayLabel(cat),
-      tooltip: categoryTooltip(cat),
-      valueDesc: SIGNAL_VALUE_DESC[cat] || "",
+      displayLabel: categoryDisplayLabel(cat, language),
+      tooltip: categoryTooltip(cat, language),
+      valueDesc: (en ? SIGNAL_VALUE_DESC_EN[cat] : SIGNAL_VALUE_DESC[cat]) || "",
       count: counts[cat],
     }));
-  }, [items]);
+  }, [items, language, en]);
 
   const topicDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -348,13 +360,13 @@ export default function SignalsPage() {
     return [...TOPIC_CATEGORIES]
       .map((cat) => ({
         category: cat,
-        displayLabel: categoryDisplayLabel(cat),
-        tooltip: categoryTooltip(cat),
+        displayLabel: categoryDisplayLabel(cat, language),
+        tooltip: categoryTooltip(cat, language),
         count: counts[cat],
       }))
       .sort((a, b) => b.count - a.count)
       .filter((c) => c.count > 0);
-  }, [items]);
+  }, [items, language]);
 
   const filteredItems = useMemo(() => {
     let list = [...items];
@@ -457,8 +469,8 @@ export default function SignalsPage() {
         <div className="border-b border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-6 py-3">
           <div className="mx-auto flex max-w-6xl items-center justify-center gap-3">
             <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-            <span className="text-sm font-medium text-amber-800">演示模式</span>
-            <span className="hidden text-sm text-amber-700 sm:inline">· 当前数据为示例内容，连接数据库后将显示真实情报</span>
+            <span className="text-sm font-medium text-amber-800">{en ? "Demo mode" : "演示模式"}</span>
+            <span className="hidden text-sm text-amber-700 sm:inline">{en ? "· Showing sample data — real signals appear once the database is connected" : "· 当前数据为示例内容，连接数据库后将显示真实情报"}</span>
           </div>
         </div>
       )}
@@ -473,20 +485,22 @@ export default function SignalsPage() {
             <div>
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <RadioTower className="h-4 w-4" aria-hidden />
-                <span>信号雷达</span>
+                <span>{en ? "Signal Radar" : "信号雷达"}</span>
               </div>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                发现动态中的高价值信号
+                {en ? "High-value signals in the feed" : "发现动态中的高价值信号"}
               </h1>
               <p className="mt-2 text-sm text-slate-500">
-                自动识别内容中的截止预警、工具更新、创作机会等关键信号，帮你快速判断动态价值
+                {en
+                  ? "Deadlines, tool updates, creative opportunities and other key signals, picked out automatically so you can judge what matters fast"
+                  : "自动识别内容中的截止预警、工具更新、创作机会等关键信号，帮你快速判断动态价值"}
               </p>
             </div>
             <Link
               href="/inbox"
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             >
-              去动态资讯
+              {en ? "Go to News Feed" : "去动态资讯"}
               <span className="text-slate-400">→</span>
             </Link>
           </div>
@@ -497,9 +511,11 @@ export default function SignalsPage() {
               <div className="flex items-start gap-3">
                 <Hand className="h-6 w-6" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-amber-800">欢迎来到信号雷达</div>
+                  <div className="text-sm font-medium text-amber-800">{en ? "Welcome to Signal Radar" : "欢迎来到信号雷达"}</div>
                   <p className="mt-1 text-xs text-amber-700">
-                    这里帮你快速发现高价值情报信号。关注来源或关键词后，匹配的内容会优先展示。
+                    {en
+                      ? "This is where high-value signals surface. Follow sources or keywords and matching items show up first."
+                      : "这里帮你快速发现高价值情报信号。关注来源或关键词后，匹配的内容会优先展示。"}
                   </p>
                 </div>
                 <button
@@ -520,32 +536,32 @@ export default function SignalsPage() {
         {/* 核心数字概览 */}
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">今日新增信号</div>
+              <div className="text-xs text-slate-500">{en ? "New signals today" : "今日新增信号"}</div>
               <div className="mt-1 text-2xl font-semibold text-slate-900">
                 {stats.todayCount}
               </div>
-              <div className="mt-0.5 text-xs text-emerald-600">条新动态</div>
+              <div className="mt-0.5 text-xs text-slate-500">{en ? "new items" : "条新动态"}</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">核心关注</div>
-              <div className="mt-1 text-2xl font-semibold text-red-600">
+              <div className="text-xs text-slate-500">{en ? "Core" : "核心关注"}</div>
+              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]">
                 {stats.coreCount}
               </div>
-              <div className="mt-0.5 text-xs text-slate-500">条最高优先级</div>
+              <div className="mt-0.5 text-xs text-slate-500">{en ? "top priority" : "条最高优先级"}</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">重点内容</div>
-              <div className="mt-1 text-2xl font-semibold text-orange-600">
+              <div className="text-xs text-slate-500">{en ? "Key" : "重点内容"}</div>
+              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]/70">
                 {stats.highlightCount}
               </div>
-              <div className="mt-0.5 text-xs text-slate-500">条高优先级</div>
+              <div className="mt-0.5 text-xs text-slate-500">{en ? "high priority" : "条高优先级"}</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">情报总数</div>
+              <div className="text-xs text-slate-500">{en ? "Total signals" : "情报总数"}</div>
               <div className="mt-1 text-2xl font-semibold text-slate-900">
                 {stats.totalCount}
               </div>
-              <div className="mt-0.5 text-xs text-slate-500">条带信号内容</div>
+              <div className="mt-0.5 text-xs text-slate-500">{en ? "items with a signal" : "条带信号内容"}</div>
             </div>
           </div>
         </section>
@@ -556,17 +572,17 @@ export default function SignalsPage() {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
-                  <Target className="mr-1 inline h-3.5 w-3.5" aria-hidden />你的关注信号
+                  <Target className="mr-1 inline h-3.5 w-3.5" aria-hidden />{en ? "Signals you follow" : "你的关注信号"}
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  来自你关注的来源和关键词的情报信号
+                  {en ? "Signals from the sources and keywords you follow" : "来自你关注的来源和关键词的情报信号"}
                 </p>
               </div>
               <Link
                 href="/subscribe"
                 className="text-xs text-slate-500 hover:text-slate-700"
               >
-                管理关注 →
+                {en ? "Manage follows →" : "管理关注 →"}
               </Link>
             </div>
             {subscriptionsLoading || loading ? (
@@ -586,10 +602,10 @@ export default function SignalsPage() {
               <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
                 <Search className="mx-auto mb-2 h-7 w-7 text-slate-300" aria-hidden />
                 <p className="text-sm text-slate-600">
-                  暂无匹配的信号内容
+                  {en ? "No matching signals yet" : "暂无匹配的信号内容"}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  你关注的来源和关键词暂未出现高信号强度的内容
+                  {en ? "Nothing strong has come up from what you follow yet" : "你关注的来源和关键词暂未出现高信号强度的内容"}
                 </p>
               </div>
             ) : (
@@ -616,7 +632,7 @@ export default function SignalsPage() {
                                 className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${signalStyle.chip}`}
                                 title={signalStyle.tooltip}
                               >
-                                {signalStyle.displayLabel}
+                                {categoryDisplayLabel(topSignal, language)}
                               </span>
                             )}
                             <SubscriptionBadge matches={matches} compact />
@@ -625,7 +641,7 @@ export default function SignalsPage() {
                             </span>
                           </div>
                           <h3 className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-900 group-hover:text-slate-700">
-                            <Highlight text={summarizeTitle(item.title)} query={signalQ} />
+                            <Highlight text={item.title} query={signalQ} />
                           </h3>
                         </div>
                       </div>
@@ -640,14 +656,14 @@ export default function SignalsPage() {
         {/* 信号类型分布 */}
         <section className="mb-8">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">信号类型分布</h2>
+            <h2 className="text-base font-semibold text-slate-900">{en ? "Signals by type" : "信号类型分布"}</h2>
             {selectedSignalTypes.size > 0 && (
               <button
                 type="button"
                 onClick={() => setSelectedSignalTypes(new Set())}
                 className="text-xs text-slate-500 hover:text-slate-700"
               >
-                清空筛选
+                {en ? "Clear filters" : "清空筛选"}
               </button>
             )}
           </div>
@@ -683,14 +699,14 @@ export default function SignalsPage() {
         {topicDistribution.length > 0 && (
           <section className="mb-8">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">哪些领域信号密集</h2>
+              <h2 className="text-base font-semibold text-slate-900">{en ? "Where signals cluster" : "哪些领域信号密集"}</h2>
               {selectedTopicTypes.size > 0 && (
                 <button
                   type="button"
                   onClick={() => setSelectedTopicTypes(new Set())}
                   className="text-xs text-slate-500 hover:text-slate-700"
                 >
-                  清空筛选
+                  {en ? "Clear filters" : "清空筛选"}
                 </button>
               )}
             </div>
@@ -745,12 +761,12 @@ export default function SignalsPage() {
                     setShowSignalHistory(false);
                   }
                 }}
-                placeholder="搜索标题或机构…"
+                placeholder={en ? "Search titles or sources…" : "搜索标题或机构…"}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-0"
               />
               {showSignalHistory && signalSearchHistory.length > 0 && !signalQ && (
                 <div className="absolute left-0 top-full z-20 mt-1 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-                  <div className="px-3 pt-2 pb-1 text-[10px] font-medium text-slate-400">最近搜索</div>
+                  <div className="px-3 pt-2 pb-1 text-[10px] font-medium text-slate-400">{en ? "Recent searches" : "最近搜索"}</div>
                   {signalSearchHistory.map((h) => (
                     <button
                       key={h}
@@ -771,16 +787,16 @@ export default function SignalsPage() {
                     }}
                     className="w-full border-t border-slate-100 px-3 py-2 text-center text-[11px] text-slate-400 transition hover:bg-slate-50"
                   >
-                    清除历史记录
+                    {en ? "Clear history" : "清除历史记录"}
                   </button>
                 </div>
               )}
             </div>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="flex shrink-0 items-center gap-2">
-              <h2 className="text-base font-semibold text-slate-900">信号列表</h2>
+              <h2 className="text-base font-semibold text-slate-900">{en ? "Signals" : "信号列表"}</h2>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                {filteredItems.length} 条
+                {en ? filteredItems.length : `${filteredItems.length} 条`}
               </span>
               {isFetching && (
                 <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
@@ -791,7 +807,7 @@ export default function SignalsPage() {
                   onClick={clearFilters}
                   className="text-xs text-slate-500 hover:text-slate-700"
                 >
-                  清空筛选
+                  {en ? "Clear filters" : "清空筛选"}
                 </button>
               )}
             </div>
@@ -809,17 +825,17 @@ export default function SignalsPage() {
                         : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    {r === "all" ? "全部" : r === "domestic" ? "国内" : "全球"}
+                    {r === "all" ? (en ? "All" : "全部") : r === "domestic" ? (en ? "China" : "国内") : (en ? "Global" : "全球")}
                   </button>
                 ))}
               </div>
               {/* 快速日期过滤 */}
               <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-0.5">
                 {([
-                  { v: "all" as QuickDateFilter, label: "全部" },
-                  { v: "today" as QuickDateFilter, label: "今日" },
-                  { v: "week" as QuickDateFilter, label: "近 7 天" },
-                  { v: "month" as QuickDateFilter, label: "近 30 天" },
+                  { v: "all" as QuickDateFilter, label: en ? "All" : "全部" },
+                  { v: "today" as QuickDateFilter, label: en ? "Today" : "今日" },
+                  { v: "week" as QuickDateFilter, label: en ? "7 days" : "近 7 天" },
+                  { v: "month" as QuickDateFilter, label: en ? "30 days" : "近 30 天" },
                 ]).map((opt) => (
                   <button
                     key={opt.v}
@@ -838,9 +854,9 @@ export default function SignalsPage() {
               {/* 排序切换 */}
               <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-0.5">
               {([
-                { v: "signalStrength" as SortMode, label: "按信号强度" },
-                { v: "firstSeen" as SortMode, label: "按最新发现" },
-                { v: "priority" as SortMode, label: "按优先级" },
+                { v: "signalStrength" as SortMode, label: en ? "Strongest" : "按信号强度" },
+                { v: "firstSeen" as SortMode, label: en ? "Newest found" : "按最新发现" },
+                { v: "priority" as SortMode, label: en ? "Priority" : "按优先级" },
               ]).map((opt) => (
                 <button
                   key={opt.v}
@@ -865,10 +881,10 @@ export default function SignalsPage() {
                     ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
-                title={autoRefresh ? "自动刷新已开启（每 5 分钟）" : "开启自动刷新"}
+                title={autoRefresh ? (en ? "Auto-refresh on (every 5 min)" : "自动刷新已开启（每 5 分钟）") : (en ? "Turn on auto-refresh" : "开启自动刷新")}
               >
                 <span className={autoRefresh ? "animate-spin" : ""} style={autoRefresh ? { animationDuration: "3s" } : {}}><RefreshCw className="h-4 w-4" aria-hidden /></span>
-                {autoRefresh ? "自动刷新中" : "自动刷新"}
+                {autoRefresh ? (en ? "Auto-refreshing" : "自动刷新中") : (en ? "Auto-refresh" : "自动刷新")}
               </button>
               {/* 生成周报 */}
               {filteredItems.length > 0 && (
@@ -877,14 +893,16 @@ export default function SignalsPage() {
                   onClick={() => setDigestOpen(true)}
                   className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-100"
                 >
-                  <Newspaper className="h-3.5 w-3.5" aria-hidden />生成周报
+                  <Newspaper className="h-3.5 w-3.5" aria-hidden />{en ? "Weekly brief" : "生成周报"}
                 </button>
               )}
               {filteredItems.length > 0 && (
                 <button
                   type="button"
                   onClick={() => {
-                    const headers = ["标题", "机构", "栏目", "发布时间", "发现时间", "信号类别", "信号强度", "链接"];
+                    const headers = en
+                      ? ["Title", "Source", "Channel", "Published", "First seen", "Signal type", "Signal strength", "URL"]
+                      : ["标题", "机构", "栏目", "发布时间", "发现时间", "信号类别", "信号强度", "链接"];
                     const csvRows = [
                       headers.map((h) => `"${h}"`).join(","),
                       ...filteredItems.map((item) => {
@@ -895,7 +913,7 @@ export default function SignalsPage() {
                           item.channelName || "",
                           item.listPublishedAt,
                           item.firstSeenAt || "",
-                          topCat ? categoryDisplayLabel(topCat) : "",
+                          topCat ? categoryDisplayLabel(topCat, language) : "",
                           String(item.keywordScore),
                           item.url,
                         ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
@@ -920,7 +938,7 @@ export default function SignalsPage() {
                 data-print-hide
                 className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500 transition hover:bg-slate-50"
               >
-                <Printer className="h-3.5 w-3.5" aria-hidden />打印
+                <Printer className="h-3.5 w-3.5" aria-hidden />{en ? "Print" : "打印"}
               </button>
             </div>
           </div>
@@ -933,20 +951,20 @@ export default function SignalsPage() {
               className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
             >
               <span className="animate-bounce">⬆</span>
-              发现 {newBanner} 条新内容，点击刷新
+              {en ? `${newBanner} new — click to refresh` : `发现 ${newBanner} 条新内容，点击刷新`}
             </button>
           )}
 
           {filteredItems.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-              当前筛选下没有信号。
+              {en ? "No signals match these filters." : "当前筛选下没有信号。"}
               {hasAnyFilter ? (
                 <button
                   type="button"
                   onClick={clearFilters}
                   className="ml-2 underline decoration-slate-300 underline-offset-2"
                 >
-                  清空筛选
+                  {en ? "Clear filters" : "清空筛选"}
                 </button>
               ) : null}
             </div>
@@ -954,7 +972,6 @@ export default function SignalsPage() {
             <div className="space-y-2">
               {filteredItems.map((item) => {
                 const priorityMeta = getPriorityMeta(item.importanceLevel);
-                const normalizedLevel = normalizePriorityLevel(item.importanceLevel);
                 const topSignal = getTopSignalCategory(item.categories);
                 const topicCats = getTopicCategories(item.categories).slice(0, 3);
                 const signalStyle = topSignal ? getCategoryStyle(topSignal) : null;
@@ -978,7 +995,7 @@ export default function SignalsPage() {
                               className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${signalStyle.chip}`}
                               title={signalStyle.tooltip}
                             >
-                              {signalStyle.displayLabel}
+                              {categoryDisplayLabel(topSignal, language)}
                             </span>
                           )}
                           {!subscriptionsLoading && itemMatches.length > 0 && (
@@ -991,15 +1008,21 @@ export default function SignalsPage() {
                             <span
                               key={tc.category}
                               className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600"
-                              title={categoryTooltip(tc.category)}
+                              title={categoryTooltip(tc.category, language)}
                             >
-                              {categoryDisplayLabel(tc.category)}
+                              {categoryDisplayLabel(tc.category, language)}
                             </span>
                           ))}
                         </div>
                         <h3 className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-900 group-hover:text-slate-600">
-                          <Highlight text={summarizeTitle(item.title)} query={signalQ} />
+                          <Highlight text={item.title} query={signalQ} />
                         </h3>
+                        {/* 护城河在扫读处露出：与动态资讯/首页同一写法 */}
+                        {pickLens(item, language) && (
+                          <p className="mt-1 font-serif text-[15px] leading-snug text-[var(--brand)] line-clamp-2">
+                            {pickLens(item, language)}
+                          </p>
+                        )}
                         <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
                           <span>{item.channelName}</span>
                           {item.listPublishedAt && (
@@ -1014,9 +1037,11 @@ export default function SignalsPage() {
                               : daysAgo <= 5
                               ? "bg-amber-100 text-amber-700"
                               : "bg-red-100 text-red-700";
-                            const label = daysAgo === 0 ? "今日发布" : daysAgo === 1 ? "1 天前" : `${daysAgo} 天前`;
+                            const label = en
+                              ? (daysAgo === 0 ? "Today" : daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`)
+                              : (daysAgo === 0 ? "今日发布" : daysAgo === 1 ? "1 天前" : `${daysAgo} 天前`);
                             return (
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${color}`} title="发布距今天数">
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${color}`} title={en ? "Days since published" : "发布距今天数"}>
                                 <Clock className="mr-0.5 inline h-3 w-3" aria-hidden />{label}
                               </span>
                             );
@@ -1024,30 +1049,25 @@ export default function SignalsPage() {
                           {item.keywordScore > 0 && (
                             <span
                               className="flex items-center gap-1 text-violet-600"
-                              title={[
-                                `信号强度拆解`,
-                                `优先级：${item.importanceLevel}`,
-                                `关键词得分：${item.keywordScore} pts`,
-                                `匹配类别：${item.categories.length} 个`,
-                              ].join("\n")}
+                              title={(en
+                                ? [
+                                    `Signal strength breakdown`,
+                                    `Priority: ${priorityMeta.labelEn}`,
+                                    `Keyword score: ${item.keywordScore} pts`,
+                                    `Categories matched: ${item.categories.length}`,
+                                  ]
+                                : [
+                                    `信号强度拆解`,
+                                    `优先级：${item.importanceLevel}`,
+                                    `关键词得分：${item.keywordScore} pts`,
+                                    `匹配类别：${item.categories.length} 个`,
+                                  ]
+                              ).join("\n")}
                             >
-                              信号强度 {item.keywordScore}
+                              {en ? "Strength" : "信号强度"} {item.keywordScore}
                               <span className="text-[10px] text-violet-400 select-none">ⓘ</span>
                             </span>
                           )}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div
-                          className={`text-xs font-medium ${
-                            normalizedLevel === "核心关注"
-                              ? "text-red-600"
-                              : normalizedLevel === "重点内容"
-                                ? "text-orange-600"
-                                : "text-slate-500"
-                          }`}
-                        >
-                          {priorityMeta.shortLabel}
                         </div>
                       </div>
                     </div>
@@ -1060,7 +1080,7 @@ export default function SignalsPage() {
 
         {/* 底部说明 */}
         <footer className="mt-12 border-t border-slate-200 pt-6 pb-4 text-center text-xs text-slate-400">
-          信号雷达 · 基于关键词匹配的情报信号自动识别
+          {en ? "Signal Radar · signals detected automatically by keyword matching" : "信号雷达 · 基于关键词匹配的情报信号自动识别"}
         </footer>
       </div>
 

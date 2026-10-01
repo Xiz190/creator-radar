@@ -92,8 +92,10 @@ describe("导航 - isMenuDivider（类型守卫）", () => {
       isMenuDivider({
         href: "/inbox",
         label: "全部动态",
+        labelEn: "News Feed",
         icon: BookOpen,
         desc: "政策列表",
+        descEn: "Item list",
       }),
     ).toBe(false);
   });
@@ -189,13 +191,14 @@ describe("导航 - settingsMenu（设置菜单配置）", () => {
     }
   });
 
-  it("「设置与帮助」分组有 9 个菜单项，含版本规划、方法说明", () => {
+  it("「设置与帮助」分组有 9 个菜单项，含版本规划、手机伴侣版、方法说明", () => {
     const groupItems = settingsMenu.slice(6);
     expect(groupItems.length).toBe(9);
     expect(groupItems.every((item) => !isMenuDivider(item))).toBe(true);
 
     const labels = groupItems.map((item) => ("label" in item ? item.label : ""));
     expect(labels).toContain("版本规划");
+    expect(labels).toContain("手机伴侣版");
     expect(labels).toContain("方法说明");
   });
 

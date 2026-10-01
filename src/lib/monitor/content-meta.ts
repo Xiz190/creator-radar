@@ -53,7 +53,7 @@ export const CATEGORY_STYLE: Record<string, CategoryStyle> = {
     displayLabel: "创作机会",
     tooltip: "音乐比赛、驻留项目、厂牌招募、资助申请",
     description: "包含国内外音乐比赛报名、唱片厂牌投递招募、艺术家驻留项目、音乐类资助基金申请等对独立音乐人有实质价值的机会资讯。",
-    value: "直接关系到曝光、资金和合作机会，是模块B的核心内容。截止日期临近时会触发预警。",
+    value: "直接关系到曝光、资金和合作机会；识别到截止日期时，临近截止会高亮提示。",
     icon: Target,
     chip: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     highlight: "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200 rounded px-1 py-0.5",
@@ -64,8 +64,8 @@ export const CATEGORY_STYLE: Record<string, CategoryStyle> = {
     label: "C·申报截止预警",
     displayLabel: "截止预警",
     tooltip: "报名截止、投递截止、申请截止日期临近警示",
-    description: "对各类音乐比赛、资助申请、驻留项目的报名截止时间进行追踪，在截止日期前7天、3天、1天触发不同级别预警。",
-    value: "防止错过重要机会，是创作者雷达的核心差异化功能之一。",
+    description: "从正文里识别比赛、资助、驻留项目的报名或投递截止日期：3 天内截止的条目会高亮提示，已过截止日的标为「已截止」。",
+    value: "帮你别错过报名窗口。",
     icon: AlarmClock,
     chip: "bg-rose-50 text-rose-700 border border-rose-200",
     highlight: "bg-rose-100 text-rose-900 ring-1 ring-rose-200 rounded px-1 py-0.5",
@@ -262,12 +262,110 @@ export function categoryLabel(cat: string): string {
   return getCategoryStyle(cat).label;
 }
 
-export function categoryDisplayLabel(cat: string): string {
-  return getCategoryStyle(cat).displayLabel;
+// 英文界面用的分类名（键 = 中文 displayLabel）；没登记的原样返回
+const CATEGORY_LABEL_EN: Record<string, string> = {
+  "AI工具更新": "AI tool update",
+  "创作机会": "Creator opportunity",
+  "截止预警": "Deadline alert",
+  "行业观察": "Industry watch",
+  "版权与平台政策": "Copyright & platform policy",
+  "AI音乐工具": "AI music tools",
+  "视频AI工具": "Video AI tools",
+  "发行平台": "Distribution",
+  "比赛与节庆": "Contests & festivals",
+  "版权法律": "Copyright law",
+  "海外与国际": "International",
+  "地方动态": "Local",
+  "其他": "Other",
+};
+
+export function categoryDisplayLabel(cat: string, lang: "zh" | "en" = "zh"): string {
+  const zh = getCategoryStyle(cat).displayLabel;
+  return lang === "en" ? CATEGORY_LABEL_EN[zh] ?? zh : zh;
 }
 
-export function categoryTooltip(cat: string): string {
-  return getCategoryStyle(cat).tooltip;
+// 英文界面用的分类提示 / 说明 / 价值（键 = 中文 label）；没登记的回退中文
+const CATEGORY_TEXT_EN: Record<string, { tooltip: string; description: string; value: string }> = {
+  "A·AI工具更新": {
+    tooltip: "New features, pricing and releases from Suno / Runway / HeyGen / Pika",
+    description: "Feature updates, pricing changes and major releases from AI music tools like Suno and Udio, AI video tools like Runway and Pika, and AI avatar tools like HeyGen.",
+    value: "Shapes which tools you pick and how you work — the thing an independent musician most needs to hear about first.",
+  },
+  "B·创作机会": {
+    tooltip: "Contests, residencies, label calls and grants",
+    description: "Music contests at home and abroad, label submission calls, artist residencies and music grants — opportunities with real value for independent musicians.",
+    value: "Tied directly to exposure, money and collaborations; when a deadline is detected, it's highlighted as it gets close.",
+  },
+  "C·申报截止预警": {
+    tooltip: "Heads-up when application or submission deadlines are close",
+    description: "Picks up application or submission deadlines for contests, grants and residencies from the text: items closing within 3 days are highlighted, and past deadlines are marked Closed.",
+    value: "So you don't miss an application window.",
+  },
+  "D·行业观察": {
+    tooltip: "Streaming data, market reports and AI music trends",
+    description: "Algorithm changes and data reports from Spotify, Apple Music and other platforms, AI music copyright disputes, independent release trends and market news.",
+    value: "Helps you read where the industry is heading, as input for what you make and how you release it.",
+  },
+  "平台政策/版权": {
+    tooltip: "Platform rule changes, AI content copyright and revenue share",
+    description: "Content policies on Spotify, YouTube, TikTok and others, copyright rules for AI-generated music, changes to streaming revenue share, and AI copyright law in different countries.",
+    value: "Directly affects how you release and what you earn — especially if you make music with AI tools.",
+  },
+  "AI音乐生成工具": {
+    tooltip: "AI music platforms like Suno, Udio and Stable Audio",
+    description: "Reviews, tips and DAW workflows for AI music tools like Suno, Udio, Stable Audio and MusicLM.",
+    value: "The core tool news for independent musicians; it affects both speed and quality.",
+  },
+  "视频/视觉AI工具": {
+    tooltip: "Visual AI like Runway, Pika, HeyGen and Midjourney",
+    description: "AI tools for music videos, cover art and promo material — Runway Gen-3, Pika, HeyGen, Midjourney, DALL-E and more.",
+    value: "The toolchain for MVs and promo assets; it decides how fast you can produce visuals.",
+  },
+  "流媒体/发行平台": {
+    tooltip: "Distribution: Spotify, Apple Music, DistroKid, TuneCore",
+    description: "Policy and feature changes on streaming platforms (Spotify, Apple Music, NetEase Cloud Music, QQ Music) and independent distributors (DistroKid, TuneCore, CD Baby).",
+    value: "Shapes your release strategy and revenue split — a core reference for running your music as an independent.",
+  },
+  "音乐比赛/节庆": {
+    tooltip: "Contests, festivals, showcases",
+    description: "Music contests at home and abroad, festival showcase slots, and industry events like SXSW and Midem — chances to perform and be seen.",
+    value: "A core exposure channel for building an audience and industry connections.",
+  },
+  "版权/法律": {
+    tooltip: "Copyright registration, licensing, AI content disputes",
+    description: "How to register copyright, ISRC codes, reading licensing agreements, who owns AI-generated music, and each platform's compliance rules.",
+    value: "Protects your rights and avoids copyright risk — especially if you make music with AI tools.",
+  },
+  "海外市场/国际": {
+    tooltip: "International markets, overseas release, cross-cultural trends",
+    description: "Music markets in Europe, North America, Japan, Korea and Southeast Asia, international label calls, cross-cultural collaborations, and Chinese-language music going global.",
+    value: "Helps you spot international opportunities and plan for releasing overseas.",
+  },
+  "地方/省级/区域": {
+    tooltip: "Local cultural support and regional music events",
+    description: "Local cultural support notices, local music festivals and regional label events.",
+    value: "Useful if you're building your career in a particular region.",
+  },
+  "噪音词汇": {
+    tooltip: "Generic terms, not a specific creator signal",
+    description: "These terms are generic and don't point to a specific creator signal or topic.",
+    value: "Low value; mainly used to filter out filler.",
+  },
+};
+
+/** 按界面语言取分类样式：英文时换成英文名、提示、说明与价值（缺的回退中文） */
+export function localizeCategoryStyle(style: CategoryStyle, lang: "zh" | "en" = "zh"): CategoryStyle {
+  if (lang !== "en") return style;
+  const text = CATEGORY_TEXT_EN[style.label];
+  return {
+    ...style,
+    displayLabel: CATEGORY_LABEL_EN[style.displayLabel] ?? style.displayLabel,
+    ...(text ?? {}),
+  };
+}
+
+export function categoryTooltip(cat: string, lang: "zh" | "en" = "zh"): string {
+  return localizeCategoryStyle(getCategoryStyle(cat), lang).tooltip;
 }
 
 export function getCategoryGroup(category: string): CategoryGroupType {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePrefs } from "@/contexts/prefs-context";
 
 function saveInboxScroll() {
   if (typeof window === "undefined") return;
@@ -10,6 +11,7 @@ function saveInboxScroll() {
 }
 
 export function BackButton() {
+  const { language } = usePrefs();
   return (
     <button
       type="button"
@@ -24,13 +26,14 @@ export function BackButton() {
       }}
       className="inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm text-slate-700 transition hover:bg-slate-50"
     >
-      ← 返回
+      {language === "en" ? "← Back" : "← 返回"}
     </button>
   );
 }
 
 export function FloatingBackButton() {
   const [mounted, setMounted] = useState(false);
+  const { language } = usePrefs();
   useEffect(() => { queueMicrotask(() => setMounted(true)); }, []);
 
   if (!mounted) return null;
@@ -46,10 +49,10 @@ export function FloatingBackButton() {
           window.location.href = "/inbox";
         }
       }}
-      className="fixed bottom-6 left-6 z-50 inline-flex h-12 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/90 px-5 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 backdrop-blur transition hover:bg-white"
-      aria-label="返回"
+      className="hide-when-zoomed fixed bottom-6 left-6 z-50 inline-flex h-12 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/90 px-5 text-sm font-medium text-slate-700 shadow-lg shadow-slate-900/10 backdrop-blur transition hover:bg-white"
+      aria-label={language === "en" ? "Back" : "返回"}
     >
-      ← 返回
+      {language === "en" ? "← Back" : "← 返回"}
     </button>
   );
 }

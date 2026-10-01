@@ -11,7 +11,7 @@ import { HomeInsightCarousel } from "@/components/home-insight-carousel";
 import { usePrefs } from "@/contexts/prefs-context";
 import { pickLens } from "@/lib/localized-fields";
 import { useT, type TranslationKey } from "@/lib/i18n";
-import { RadioTower, ClipboardList } from "lucide-react";
+import { RadioTower, ClipboardList, ChevronRight, ArrowUpRight } from "lucide-react";
 
 function getGreeting(): { key: TranslationKey } {
   const now = new Date();
@@ -54,6 +54,16 @@ function formatDate(date: Date, lang: "zh" | "en"): string {
   const day = parts.find((p) => p.type === "day")?.value || "";
   const weekday = parts.find((p) => p.type === "weekday")?.value || "";
   return `${year}年${month}月${day}日 ${weekday}`;
+}
+
+const RECENT_FETCH_LIMIT = 200;
+
+function isPriority(level: string): boolean {
+  return level === "核心关注" || level === "加急" || level === "重点内容";
+}
+
+function isCore(level: string): boolean {
+  return level === "核心关注" || level === "加急";
 }
 
 type FocusItem = {
@@ -114,6 +124,8 @@ export default function Home() {
   const [dbAvailable, setDbAvailable] = useState(false);
   const [todayItems, setTodayItems] = useState<FocusItem[]>([]);
   const [starredItems, setStarredItems] = useState<FocusItem[]>([]);
+  // 头部统计用：按抓取时间取最近一批，前端数出 24 小时内的（接口日期筛选只精确到天）
+  const [recentItems, setRecentItems] = useState<FocusItem[]>([]);
 
   // 从真实数据接口拉取（含创作者视角 creatorLens），替换原来的 mock 演示数据。
   // 每 5 分钟静默轮询一次，用户无需手动刷新（不显骨架、后台更新）。
@@ -121,6 +133,12 @@ export default function Home() {
     let alive = true;
     const ac = new AbortController();
     const load = () => {
+      fetch(`/api/monitor/items?limit=${RECENT_FETCH_LIMIT}&sort=first_seen_at`, { signal: ac.signal, cache: "no-store" })
+        .then((r) => r.json())
+        .then((d: ItemsApiResponse) => {
+          if (alive) setRecentItems((d.items ?? []) as FocusItem[]);
+        })
+        .catch(() => {});
       fetch("/api/monitor/items?limit=40", { signal: ac.signal, cache: "no-store" })
         .then((r) => r.json())
         .then((d: ItemsApiResponse) => {
@@ -144,10 +162,12 @@ export default function Home() {
     };
   }, []);
 
-  const todayNewCount = todayItems.length;
-  const highPriorityCount = todayItems.filter(
-    (i) => i.importanceLevel === "核心关注" || i.importanceLevel === "加急" || i.importanceLevel === "重点内容",
-  ).length;
+  // 原先直接用 todayItems.length，而那个请求是 limit=40，所以「今天 40 条」永远是 40
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const last24h = recentItems.filter((i) => i.firstSeenAt && new Date(i.firstSeenAt).getTime() >= dayAgo);
+  const todayNewCount = last24h.length;
+  const highPriorityCount = last24h.filter((i) => isPriority(i.importanceLevel)).length;
+  const newCountLabel = todayNewCount >= RECENT_FETCH_LIMIT ? `${RECENT_FETCH_LIMIT}+` : String(todayNewCount);
   const [briefOpen, setBriefOpen] = useState(false);
   const [briefCopied, setBriefCopied] = useState(false);
   const [recentlyViewed, setRecentlyViewed] = useState<{ title: string; url: string; departmentName: string; listPublishedAt?: string; viewedAt: string }[]>([]);
@@ -159,27 +179,25 @@ export default function Home() {
     } catch {}
   }, []);
 
-  const highItems = todayItems.filter(
-    (i) => i.importanceLevel === "核心关注" || i.importanceLevel === "加急" || i.importanceLevel === "重点内容",
-  );
+  const highItems = todayItems.filter((i) => isPriority(i.importanceLevel));
   // 真实数据的重要性分级可能还没跑，高优先级不足 3 条时用最新动态兜底，保证门面不空
   const mustReadItems = (highItems.length >= 3 ? highItems : todayItems).slice(0, 3);
 
   function generateBriefText(): string {
-    const dateStr = new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" });
-    const lines: string[] = [`今日情报简报 · ${dateStr}`, ""];
+    const dateStr = new Date().toLocaleDateString(language === "en" ? "en-US" : "zh-CN", { year: "numeric", month: "long", day: "numeric" });
+    const lines: string[] = [`${T("home.brief.doc-title")} · ${dateStr}`, ""];
     todayItems.forEach((item, i) => {
-      const priority = item.importanceLevel === "核心关注" || item.importanceLevel === "加急"
-        ? "【核心】"
+      const priority = isCore(item.importanceLevel)
+        ? T("home.brief.tag-core")
         : item.importanceLevel === "重点内容"
-        ? "【⚠ 重点】"
-        : "【·】";
+        ? T("home.brief.tag-key")
+        : "[·]";
       lines.push(`${i + 1}. ${priority} ${item.title}`);
-      if (item.departmentName) lines.push(`   来源：${item.departmentName}`);
-      if (item.listPublishedAt) lines.push(`   时间：${item.listPublishedAt.slice(0, 10)}`);
+      if (item.departmentName) lines.push(`   ${T("home.brief.source")}${item.departmentName}`);
+      if (item.listPublishedAt) lines.push(`   ${T("home.brief.date")}${item.listPublishedAt.slice(0, 10)}`);
       lines.push("");
     });
-    lines.push("— 由创作者雷达生成");
+    lines.push(T("home.brief.footer"));
     return lines.join("\n");
   }
 
@@ -215,7 +233,7 @@ export default function Home() {
                 </div>
                 <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
                   <span className="animate-pulse">{T(greeting.key)}</span>
-                  <span className="text-slate-500">，</span>
+                  <span className="text-slate-500">{T("common.comma")}</span>
                   <span className="text-slate-300 animate-pulse">
                     {T("home.loading.title")}
                   </span>
@@ -312,9 +330,9 @@ export default function Home() {
               </div>
               <h1 className="mt-4 text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
                 {T(greeting.key)}
-                <span className="text-white/70">，</span>
+                <span className="text-white/70">{T("common.comma")}</span>
                 <span className="text-white">
-                  {T("home.today-updates", { n: todayNewCount })}
+                  {T("home.today-updates", { n: newCountLabel })}
                 </span>
               </h1>
               <p className="mt-2 text-xs text-white/75 sm:text-sm">
@@ -325,7 +343,7 @@ export default function Home() {
             <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-7 sm:gap-3">
               <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.07] sm:rounded-2xl sm:px-4 sm:py-4">
                 <div className="text-[10px] uppercase tracking-wider text-white/65 sm:text-[11px]">{T("home.stat.new-label")}</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-white sm:mt-1.5 sm:text-3xl">{todayNewCount}</div>
+                <div className="mt-1 text-2xl font-bold tabular-nums text-white sm:mt-1.5 sm:text-3xl">{newCountLabel}</div>
                 <div className="mt-0.5 text-[10px] text-white/60 sm:text-[11px]">{T("home.stat.new-unit")}</div>
               </div>
               <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.07] sm:rounded-2xl sm:px-4 sm:py-4">
@@ -348,61 +366,64 @@ export default function Home() {
           {/* 左主栏 */}
           <div className="space-y-5 lg:col-span-2">
 
-        {/* 今日必读推荐 */}
+        {/* 今日必读：与伴侣版同一语言——衬线赭石的创作者视角打头，来源和标题退为附注 */}
         {mustReadItems.length > 0 && (
-          <section className="mt-4">
-            <div className="rounded-2xl border border-[var(--brand-border)] bg-[var(--brand-tint)]/40 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-slate-900">今日必读</span>
-                  <span className="rounded-full bg-[var(--brand-tint)] px-2 py-0.5 text-[10px] font-medium text-[var(--brand)]">{mustReadItems.length} 条高优先级</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setBriefOpen(true)}
-                    className="rounded-full border border-rose-200 bg-white/70 px-2.5 py-1 text-[11px] text-rose-600 transition hover:bg-white"
-                  >
-                    生成简报
-                  </button>
-                  <Link href="/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9" prefetch={false} className="text-xs text-rose-600 hover:underline">
-                    查看全部 →
-                  </Link>
-                </div>
+          <section className="mt-4 rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-base font-semibold text-slate-900">{T("home.mustread.title")}</h2>
+                <span className="text-xs text-slate-500">{T("home.mustread.count", { n: mustReadItems.length })}</span>
               </div>
-              <ul className="space-y-2">
-                {mustReadItems.map((item) => {
-                  const lens = pickLens(item, language);
-                  return (
+              <div className="flex items-center gap-3 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setBriefOpen(true)}
+                  className="text-slate-600 underline-offset-4 transition hover:text-slate-900 hover:underline"
+                >
+                  {T("home.mustread.brief")}
+                </button>
+                <Link
+                  href="/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9"
+                  prefetch={false}
+                  className="inline-flex items-center gap-0.5 font-medium text-[var(--brand)] underline-offset-4 hover:underline"
+                >
+                  {T("home.mustread.viewall")}
+                  <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </div>
+            </div>
+            <ul className="divide-y divide-slate-200">
+              {mustReadItems.map((item) => {
+                const lens = pickLens(item, language);
+                return (
                   <li key={item.url}>
                     <Link
                       href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
                       prefetch={false}
-                      className="block rounded-xl bg-white/80 px-3 py-2 transition hover:bg-white"
+                      className="group block px-5 py-3.5 transition hover:bg-slate-50"
                     >
-                      <div className="flex items-start gap-2 text-sm">
-                        <span className={`mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                          item.importanceLevel === "核心关注" || item.importanceLevel === "加急"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-orange-100 text-orange-700"
-                        }`}>
-                          {item.importanceLevel === "核心关注" || item.importanceLevel === "加急" ? "核心" : "重点"}
-                        </span>
-                        <span className="min-w-0 flex-1 text-xs text-slate-800 line-clamp-1">{item.title}</span>
-                        <span className="shrink-0 text-[10px] text-slate-400">{item.departmentName}</span>
-                      </div>
-                      {lens && (
-                        <p className="mt-1.5 pl-1 text-[11px] leading-relaxed text-slate-600 line-clamp-2">
-                          <span className="mr-1.5 inline-flex items-center rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-600 align-middle">创作者视角</span>
-                          {lens}
-                        </p>
+                      {lens ? (
+                        <p className="font-serif text-[15px] leading-snug text-[var(--brand)] line-clamp-2">{lens}</p>
+                      ) : (
+                        <p className="text-sm font-medium leading-snug text-slate-900 line-clamp-2">{item.title}</p>
                       )}
+                      <div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-slate-500">
+                        {isCore(item.importanceLevel) && (
+                          <span className="shrink-0 font-medium text-red-700">{T("importance.core")}</span>
+                        )}
+                        <span className="shrink-0 font-medium text-slate-700">{item.departmentName}</span>
+                        {lens && (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span className="min-w-0 truncate group-hover:text-slate-700">{item.title}</span>
+                          </>
+                        )}
+                      </div>
                     </Link>
                   </li>
-                  );
-                })}
-              </ul>
-            </div>
+                );
+              })}
+            </ul>
           </section>
         )}
 
@@ -415,8 +436,8 @@ export default function Home() {
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
               {[
-                { label: "今日未读", href: "/inbox?onlyUnread=1&sort=first_seen_at" },
-                { label: "高优先级", href: "/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9" },
+                { label: T("home.quick.unread"), href: "/inbox?onlyUnread=1&sort=first_seen_at" },
+                { label: T("home.quick.priority"), href: "/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9" },
               ].map((card) => (
                 <Link
                   key={card.href}
@@ -426,7 +447,7 @@ export default function Home() {
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand)]" />
                   <span className="text-sm font-medium text-slate-800">{card.label}</span>
-                  <span className="ml-auto text-xs text-slate-400">→</span>
+                  <ChevronRight className="ml-auto h-4 w-4 text-slate-400" aria-hidden />
                 </Link>
               ))}
             </div>
@@ -440,9 +461,9 @@ export default function Home() {
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-serif text-sm font-semibold text-slate-900">最近浏览</span>
+                  <h2 className="text-sm font-semibold text-slate-900">{T("home.recent.title")}</h2>
                 </div>
-                <Link href="/inbox" className="text-[11px] text-slate-400 hover:text-slate-600 transition">全部 →</Link>
+                <Link href="/inbox" className="inline-flex items-center gap-0.5 text-xs text-slate-500 transition hover:text-slate-900">{T("home.recent.all")}<ChevronRight className="h-3.5 w-3.5" aria-hidden /></Link>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {recentlyViewed.map((item) => (
@@ -453,10 +474,10 @@ export default function Home() {
                     rel="noreferrer"
                     className="group flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 transition hover:bg-slate-50"
                   >
-                    <span className="mt-0.5 shrink-0 text-sm text-slate-300 group-hover:text-slate-400">↗</span>
+                    <ArrowUpRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-400 group-hover:text-slate-600" aria-hidden />
                     <div className="min-w-0 flex-1">
                       <div className="line-clamp-1 text-xs font-medium text-slate-800 group-hover:text-sky-700">{item.title}</div>
-                      <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                         <span>{item.departmentName}</span>
                         {item.listPublishedAt && <span>· {item.listPublishedAt.slice(0, 10)}</span>}
                       </div>
@@ -524,7 +545,7 @@ export default function Home() {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                <h2 className="text-sm font-semibold text-slate-900">今日情报简报</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{T("home.brief.doc-title")}</h2>
                 <button type="button" onClick={() => setBriefOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
               </div>
               <div className="p-5">
@@ -541,7 +562,7 @@ export default function Home() {
                   onClick={() => setBriefOpen(false)}
                   className="rounded-full border border-slate-200 px-4 py-1.5 text-xs text-slate-600 transition hover:bg-slate-50"
                 >
-                  关闭
+                  {T("common.close")}
                 </button>
                 <button
                   type="button"
@@ -553,7 +574,7 @@ export default function Home() {
                   }}
                   className="rounded-full bg-violet-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-violet-700"
                 >
-                  {briefCopied ? "✓ 已复制" : "复制文本"}
+                  {briefCopied ? T("common.copied") : T("common.copy-text")}
                 </button>
               </div>
             </div>

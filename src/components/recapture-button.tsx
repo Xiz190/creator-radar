@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { fetchWithAuth } from "@/lib/fetch-with-auth";
+import { usePrefs } from "@/contexts/prefs-context";
 
 export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; url: string; isMock?: boolean }) {
+  const en = usePrefs().language === "en";
+  const label = en ? "Re-fetch text" : "重新抓取正文";
   const [loading, setLoading] = useState(false);
   const [showTip, setShowTip] = useState(false);
 
@@ -15,7 +18,7 @@ export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; u
           onClick={() => setShowTip((v) => !v)}
           className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-slate-50 px-5 text-sm text-slate-400 cursor-default"
         >
-          重新抓取正文
+          {label}
         </button>
         {showTip && (
           <div className="absolute left-0 top-12 z-10 w-64 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg text-xs text-slate-600 leading-relaxed">
@@ -41,7 +44,7 @@ export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; u
       if (data.ok) {
         window.location.reload();
       } else {
-        alert("重新抓取失败：" + (data.error || "unknown"));
+        alert((en ? "Re-fetch failed: " : "重新抓取失败：") + (data.error || "unknown"));
       }
     } finally {
       setLoading(false);
@@ -49,13 +52,13 @@ export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; u
   }
 
   return (
-    <button
+    <button data-owner-only
       type="button"
       onClick={handleClick}
       disabled={loading}
       className="inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
     >
-      {loading ? "重新抓取中…" : "重新抓取正文"}
+      {loading ? (en ? "Re-fetching…" : "重新抓取中…") : label}
     </button>
   );
 }

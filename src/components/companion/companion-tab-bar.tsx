@@ -26,7 +26,7 @@ export function CompanionTabBar() {
     <nav
       // 固定定位会逃出 layout 的 max-w-[480px]，所以这里自己居中收窄，
       // 桌面浏览器上才不会横跨整屏（见 m/layout.tsx 里的说明）
-      className="fixed bottom-0 left-1/2 z-40 flex h-[82px] w-full max-w-[480px] -translate-x-1/2 border-t border-slate-200 bg-slate-50/92 px-2 pb-[22px] pt-2 backdrop-blur-md"
+      className="hide-when-zoomed fixed bottom-0 left-1/2 z-40 flex h-[82px] w-full max-w-[480px] -translate-x-1/2 border-t border-slate-200 bg-slate-50/92 px-2 pb-[22px] pt-2 backdrop-blur-md"
       aria-label={t("companion.brand")}
     >
       {COMPANION_TABS.map((tab) => {

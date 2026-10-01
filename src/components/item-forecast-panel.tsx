@@ -247,7 +247,7 @@ export function ItemForecastPanel({
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {!isEditing ? (
               <>
-                <button
+                <button data-owner-only
                   type="button"
                   onClick={handleAnalyzeWithAI}
                   disabled={isAnalyzing}
@@ -284,7 +284,7 @@ export function ItemForecastPanel({
                 >
                   取消
                 </button>
-                <button
+                <button data-owner-only
                   type="button"
                   onClick={handleSave}
                   disabled={isSaving}
