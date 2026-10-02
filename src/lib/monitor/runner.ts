@@ -32,6 +32,7 @@ import {
   updateRunFinished,
   upsertItemDetail,
 } from "@/lib/monitor/db";
+import { passesSourceTopicGate } from "@/lib/monitor/topic-gate";
 
 function nowIso() {
   return new Date().toISOString();
@@ -358,6 +359,8 @@ export async function runMonitorOnce(options: RunMonitorOptions = {}) {
           .flatMap((item) => {
             const n = normalizeDateForDb(item.listPublishedAt);
             if (!n || n < source.startDate) return [];
+            // 按来源的主题门槛（如 PetaPixel 只收 AI 影像相关），见 topic-gate.ts
+            if (!passesSourceTopicGate(source.id, item.title)) return [];
             return [{ ...item, listPublishedAt: n }];
           })
           .slice(0, source.maxItems);
