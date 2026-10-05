@@ -74,6 +74,16 @@ const MILESTONES: Milestone[] = [
       { zh: "修掉数据库字段被二次解析而恒为空、正文提取漏出网页代码、离线缓存一直返回旧页面等问题", en: "Fixed fields that were always empty from double-parsing, page code leaking into article text, and an offline cache that kept serving stale pages" },
     ],
   },
+  {
+    when: { zh: "10 月 1–2 日", en: "Oct 1–2" },
+    title: { zh: "正式上线，演示站收紧权限", en: "Live — and a demo that doesn't pretend" },
+    points: [
+      { zh: "正式上线；GitHub Actions 每 6 小时自动抓取，电脑关着也照常更新", en: "Live on the web; GitHub Actions crawls every 6 hours, whether or not my laptop is on" },
+      { zh: "管理页和诊断接口只给作者；访客能看到的写操作按钮置灰并注明，不再「先显示已收藏、刷新又没了」", en: "Admin pages and diagnostics are owner-only; write buttons are greyed out for visitors instead of showing \"Starred\" and quietly failing" },
+      { zh: "手机：桌面站提示有伴侣版；修掉双指放大时底栏乱飞、辅助功能面板与助手窗口伸出屏幕", en: "Phone: the desktop site points to the companion; fixed the bottom bar drifting on pinch-zoom and panels running off-screen" },
+      { zh: "数据：Pika 改版后一个月抓不到内容已修；PetaPixel 只收 AI 影像相关（309 条里留下 33 条）", en: "Data: fixed Pika returning nothing for a month after a redesign; PetaPixel now only lets in AI-imaging stories (33 of 309 kept)" },
+    ],
+  },
 ];
 
 export default function ChangelogPage() {
