@@ -36,7 +36,7 @@ Creator Radar 把「找 → 核实 → 关联 → 分析」这条情报工作流
 
 ## 真实数据
 
-**15 个活跃源、1123 条真实数据**（截至 2026-10-01，线上每 6 小时自动增长），全部来自公开接口 / 公开 RSS / 公开网页：
+**15 个活跃源，每条都带创作者视角**；线上每 6 小时自动增长，全部来自公开接口 / 公开 RSS / 公开网页。实时数据量见 [`/api/monitor/corpus-stats`](https://creator-radar-xiz.vercel.app/api/monitor/corpus-stats)：
 
 | 类型 | 源 |
 |---|---|
@@ -73,7 +73,7 @@ Creator Radar 把「找 → 核实 → 关联 → 分析」这条情报工作流
 | 数据库 | PostgreSQL 16 |
 | 样式 | Tailwind CSS 4 |
 | AI | DeepSeek（OpenAI 兼容协议） |
-| 测试 | Vitest（847 个用例） |
+| 测试 | Vitest（851 个用例） |
 
 ---
 
