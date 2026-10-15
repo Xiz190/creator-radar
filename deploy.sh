@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# 政策监测系统 - 一键部署脚本
+# 创作者雷达 Creator Radar - 一键部署脚本
 #
 # 功能：
 #   1. 环境检查（Docker、docker compose）
@@ -402,7 +402,7 @@ main() {
         deploy)
             echo ""
             echo -e "${CYAN}========================================${NC}"
-            echo -e "${CYAN}  政策监测系统 - 一键部署${NC}"
+            echo -e "${CYAN}  创作者雷达 Creator Radar - 一键部署${NC}"
             echo -e "${CYAN}========================================${NC}"
             echo ""
 
@@ -430,7 +430,7 @@ main() {
             show_status
             ;;
         help)
-            echo "政策监测系统 - 一键部署脚本"
+            echo "创作者雷达 Creator Radar - 一键部署脚本"
             echo ""
             echo "用法:"
             echo "  ./deploy.sh              交互式部署"
