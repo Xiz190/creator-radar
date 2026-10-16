@@ -268,8 +268,10 @@ async function ensureMonitorSchemaInternal() {
     { name: "matched_genres", type: "jsonb" },
     { name: "signal_hits", type: "jsonb" },
     { name: "importance_level", type: "text" },
-    // 创作者视角的英文版（中文版 creator_lens 是历史遗留、当年手工加的列，没走这里）。
-    // 桌面站按界面语言二选一显示，伴侣版（固定英文）用它。
+    // 创作者视角（中文版）。当年是手工加的列，没走这里，导致全新数据库缺这一列、
+    // 视角补齐会失败；补进来后新库首次运行就会自动建好（已有库 if not exists 不受影响）。
+    { name: "creator_lens", type: "text" },
+    // 创作者视角的英文版。桌面站按界面语言二选一显示，伴侣版（固定英文）用它。
     // 两份都从原始标题+正文生成，各写各的母语——不是互为翻译。
     { name: "creator_lens_en", type: "text" },
     // 「我的备注」——用户在条目上写的话（伴侣版 Saved 屏的核心，决策 D8）。

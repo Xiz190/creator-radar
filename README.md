@@ -37,7 +37,7 @@ In short, it watches AI news for you and turns it into "here's what this means f
 
 This is the heart of the project. It isn't a keyword classifier. It's an **LLM layer that writes from a creator's perspective**:
 
-- **A three-part knowledge base** (`knowledge/lens/`). You tune the lens by editing text files, not code:
+- **A three-part knowledge base** (`knowledge/lens/`). You tune the lens by editing text files, not code ([how](#make-the-lens-yours)):
   - `persona.md` · **Personal**: who you are and how you talk (one per creator)
   - `objective.md` · **Objective**: the analysis framework plus factual knowledge, each with a source and date (shareable)
   - `examples.md` · **Examples**: lens lines you've approved. The more you add, the more consistent the voice gets
@@ -109,13 +109,64 @@ I'm an ICAM (Interdisciplinary Computing and the Arts) student at UC San Diego, 
 
 ## Quick start
 
+You'll need Node.js, PostgreSQL 16, and an API key for any OpenAI-compatible LLM (DeepSeek, OpenAI, etc.).
+
 ```bash
 npm install
-cp .env.local.example .env.local   # set DATABASE_URL and LLM_API_KEY
-npm run dev                        # development
-npm run build                      # production build
-npm run test                       # unit tests
+cp .env.local.example .env.local                  # fill in DATABASE_URL and LLM_* (see below)
+
+createdb creator_radar                            # any name, just match DATABASE_URL
+psql -d creator_radar -f schema.sql               # create tables
+psql -d creator_radar -f creator-seed.sql         # add the 15 sources and keywords
+
+npx tsx --env-file=.env.local scripts/crawl.ts    # one crawl, lens lines generated automatically
+npm run dev                                       # open http://localhost:3000
 ```
+
+The three LLM lines in `.env.local` are commented out by default. Uncomment and fill them in. With DeepSeek, for example:
+
+```bash
+LLM_API_KEY=sk-your-key
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+```
+
+- LLM APIs are usually **pay-as-you-go**, and this runs on your own key. Each item gets two calls (Chinese and English). That's cheap per item, but keep an eye on your balance.
+- Without a key, crawling and browsing still work. You just won't get the creator-lens line.
+- `init-data.sql` is seed data left over from the earlier government-policy version. You **don't need** it here; `creator-seed.sql` covers everything.
+- There are three env templates: `.env.local.example` for local development, `.env.docker.example` for Docker, and `.env.example`, a shorter subset of the first.
+- **Demo mode**: the live demo is read-only for visitors via `PUBLIC_DEMO=1` plus `ADMIN_TOKEN`. The author unlocks everything at `/unlock`. Section 3 of `.env.local.example` explains how to turn it on for your own deployment. Leave it off for local development.
+
+Other commands: `npm run build` (production build), `npm run test` (unit tests).
+
+---
+
+## Make the lens yours
+
+The `knowledge/lens/persona.md` in this repo describes a **fictional example creator**, not the author. To get takes written from your point of view:
+
+**1. Swap in your identity.** Edit `knowledge/lens/persona.md` (Chinese lens) and `persona.en.md` (English lens). Replace the identity section with you: what you make, what tools you use, what you care about. Keep the tone rules and the "every line must be useful" rules. They're what keep the lines short and actually helpful.
+
+**2. (Optional) Add examples.** Put a few takes you like into `examples.md` / `examples.en.md`. More examples, steadier voice. `objective.md` is the shared analysis framework and facts, and usually doesn't need changes.
+
+**3. No code changes.** On every run, `src/lib/monitor/creator-lens.ts` reads these files as the system prompt and sends them to the LLM along with the item's headline and the first 1,500 characters of its body. The line that comes back is saved to the database. The frontend just displays it.
+
+**4. New items pick up the new lens automatically.** Every run of `scripts/crawl.ts` fills in lens lines for new items afterward (up to 40 per language per run; the rest roll over to the next run). After your first crawl there may be a lot, so you can fill them all at once:
+
+```bash
+npx tsx --env-file=.env.local scripts/gen-lens.ts all      # Chinese
+npx tsx --env-file=.env.local scripts/gen-lens-en.ts all   # English
+```
+
+**5. Old items are not rewritten.** Backfill only touches items that don't have a lens yet. Existing lines, including ones you edited by hand, are never overwritten. To rewrite old items with your new lens, clear them first, then run the two commands from step 4:
+
+```sql
+-- ⚠️ Wipes every existing lens line, including ones you hand-tuned. Regenerating calls the LLM again.
+update monitor_items set creator_lens = null, creator_lens_en = null
+where list_published_at >= '2026-01-01';
+```
+
+**6. Scheduling is up to you.** This public repo ships without a scheduled job. The live demo's scheduled crawl runs from the author's private deployment, since it needs database credentials and API keys, so it isn't included here. To keep it updating, run `scripts/crawl.ts` on a timer (cron, GitHub Actions, etc.) with `DATABASE_URL` and `LLM_*` set in that environment. If your crawler runs from GitHub, **commit and push** your persona changes so it picks up the new files.
 
 ---
 

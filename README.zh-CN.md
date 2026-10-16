@@ -37,7 +37,7 @@ Creator Radar 把「找 → 核实 → 关联 → 分析」这条情报工作流
 
 这是本项目的核心。它不是一个「关键词匹配分类器」，而是一个**基于 LLM 的创作者视角生成层**：
 
-- **三层知识库**（`knowledge/lens/`）—— 改文件即可调视角，不碰代码：
+- **三层知识库**（`knowledge/lens/`）—— 改文件即可调视角，不碰代码（步骤见[换成你自己的视角](#换成你自己的视角)）：
   - `persona.md` · 个人层：你是谁、怎么说话（每个创作者一份）
   - `objective.md` · 客观层：分析框架 + 事实性知识（带来源 / 时间标注，可共享）
   - `examples.md` · 样例层：你认可的范例。加进来的范例越多，风格越稳
@@ -109,13 +109,64 @@ Creator Radar 把「找 → 核实 → 关联 → 分析」这条情报工作流
 
 ## 快速开始
 
+需要准备：Node.js、PostgreSQL 16、一个 OpenAI 兼容协议的大模型 API key（DeepSeek、OpenAI 等都可以）。
+
 ```bash
 npm install
-cp .env.local.example .env.local   # 配置 DATABASE_URL 与 LLM_API_KEY
-npm run dev                        # 开发模式
-npm run build                      # 生产构建
-npm run test                       # 单元测试
+cp .env.local.example .env.local                  # 填 DATABASE_URL 和 LLM_*（见下）
+
+createdb creator_radar                            # 库名随意，和 DATABASE_URL 对上
+psql -d creator_radar -f schema.sql               # 建表
+psql -d creator_radar -f creator-seed.sql         # 写入 15 个数据源和关键词
+
+npx tsx --env-file=.env.local scripts/crawl.ts    # 抓一轮，并自动生成创作者视角
+npm run dev                                       # 打开 http://localhost:3000
 ```
+
+`.env.local` 里大模型这三行默认是注释掉的，取消注释并填上。以 DeepSeek 为例：
+
+```bash
+LLM_API_KEY=sk-你的key
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-chat
+```
+
+- 大模型 API 一般**按用量付费**，用的是你自己的 key、花你自己的额度。每条动态会中英文各调用一次，单条成本很低，但请留意余额。
+- 不配 key 也能抓取和浏览，只是动态下面不会有创作者视角那一句。
+- `init-data.sql` 是早期政务版遗留的初始数据，这个项目**不需要**执行它，用 `creator-seed.sql` 就够了。
+- 环境变量示例有三份：本地开发用 `.env.local.example`；用 Docker 部署用 `.env.docker.example`；`.env.example` 是精简版，内容是前者的子集。
+- **演示模式**：在线演示里访客只能浏览，靠的是 `PUBLIC_DEMO=1` 加 `ADMIN_TOKEN`。作者在 `/unlock` 页输入口令后解锁全部功能。自己部署时如果需要同样的效果，在 `.env.local.example` 第 3 节有说明；本地开发不用开。
+
+其他命令：`npm run build`（生产构建）、`npm run test`（单元测试）。
+
+---
+
+## 换成你自己的视角
+
+仓库里的 `knowledge/lens/persona.md` 是一份**虚构的示例创作者**，不是作者本人。要让判断按你的立场来写，按下面的步骤做：
+
+**1. 改身份。** 编辑 `knowledge/lens/persona.md`（中文视角）和 `persona.en.md`（英文视角），把「你的身份与立场」换成你自己：做什么、用什么工具、在乎什么。文件里的口吻规则和信息量底线建议保留，它们决定句子是否短、准、有用。
+
+**2. （可选）加范例。** 在 `examples.md` / `examples.en.md` 里加几句你认可的点评。范例越多，风格越稳。`objective.md` 是共享的分析框架和事实知识，一般不用动。
+
+**3. 不用改代码。** 每次生成时，`src/lib/monitor/creator-lens.ts` 会读取这几份文件作为系统提示，再连同动态的标题和正文前 1500 字一起发给大模型，生成的那一句会存进数据库，前端只负责显示。
+
+**4. 新动态自动用新视角。** 之后每次运行 `scripts/crawl.ts`，抓完都会自动给新条目补视角（每轮中英各最多 40 条，没补完的下一轮继续）。第一次抓取条目较多时，可以手动一次补完：
+
+```bash
+npx tsx --env-file=.env.local scripts/gen-lens.ts all      # 中文
+npx tsx --env-file=.env.local scripts/gen-lens-en.ts all   # 英文
+```
+
+**5. 旧动态不会自动重写。** 补视角只处理「还没有视角」的条目，已经写好的（包括你手动改过的）不会被覆盖。如果想让旧条目也按新立场重写，先清空，再运行第 4 步的两条命令：
+
+```sql
+-- ⚠️ 会清掉所有已有的视角，包括你手动校准过的句子；重新生成要再调用一遍大模型
+update monitor_items set creator_lens = null, creator_lens_en = null
+where list_published_at >= '2026-01-01';
+```
+
+**6. 定时抓取需要自己配。** 这个公开仓库不带定时任务。在线演示的定时抓取放在作者的私有部署里跑，因为它要用到数据库地址和 API 密钥，所以没有放进公开仓库。想让它定期更新，可以用系统的 cron、GitHub Actions 等方式定时运行 `scripts/crawl.ts`，记得把 `DATABASE_URL` 和 `LLM_*` 配进对应环境。如果你的抓取是在 GitHub 上跑的，改完 persona **要提交并推送**，它才会读到新文件。
 
 ---
 
