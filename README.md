@@ -42,7 +42,7 @@ This is the heart of the project. It isn't a keyword classifier. It's an **LLM l
   - `objective.md` · **Objective**: the analysis framework plus factual knowledge, each with a source and date (shareable)
   - `examples.md` · **Examples**: lens lines you've approved. The more you add, the more consistent the voice gets
 - **Objective and personal layers kept apart**: everyone can share one factual base while keeping their own point of view, so each person effectively has their own knowledge base
-- **Value rating**: the LLM also rates each update as high, medium or low value for creators, which drives sorting and the "high priority" flag
+- **Value rating**: the LLM also rates each update as high, medium or low value for creators. Combined with keyword-based detection of major launches, that sets one of four tiers (core / key / medium / normal), which drives sorting and the "high priority" flag
 
 ---
 
@@ -56,7 +56,7 @@ This is the heart of the project. It isn't a keyword classifier. It's an **LLM l
 | Trade media | CDM · Synthtopia · Music Ally · PetaPixel · QbitAI (量子位) |
 | Creator opportunities | China National Arts Fund (国家艺术基金) |
 
-**Compliance**: no logins, no getting around anti-bot protection, no private data. Sources behind heavy anti-bot walls (Midjourney, Ideogram, Leonardo) and a dead single-page-app source (CAPA) were deliberately left out. See [`docs/数据源说明-已知局限.md`](docs/数据源说明-已知局限.md) (in Chinese) for details.
+**Compliance**: no logins, no getting around anti-bot protection, no private data. Sources behind heavy anti-bot walls (Midjourney, Ideogram, Leonardo) and a dead single-page-app source (CAPA) were deliberately left out. See [`docs/data-sources-and-limitations.md`](docs/data-sources-and-limitations.md) for details.
 
 ---
 
@@ -103,7 +103,7 @@ I'm an ICAM (Interdisciplinary Computing and the Arts) student at UC San Diego, 
 | Database | PostgreSQL 16 |
 | Styling | Tailwind CSS 4 |
 | AI | DeepSeek (OpenAI-compatible API) |
-| Testing | Vitest (851 tests) |
+| Testing | Vitest (854 tests) |
 
 ---
 
@@ -172,7 +172,7 @@ where list_published_at >= '2026-01-01';
 
 ## Docs
 
-- [`docs/数据源说明-已知局限.md`](docs/数据源说明-已知局限.md) (in Chinese): source overview, compliance, design trade-offs and lessons learned
+- [`docs/data-sources-and-limitations.md`](docs/data-sources-and-limitations.md): source overview, compliance, design trade-offs and lessons learned
 
 ---
 

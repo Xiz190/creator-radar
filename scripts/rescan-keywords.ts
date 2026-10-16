@@ -5,7 +5,7 @@ import { rescanKeywordsOnItems } from "../src/lib/monitor/db/scanner.ts";
 
 async function main() {
   const pool = getPgPool();
-  const r = await rescanKeywordsOnItems(pool, 1000);
+  const r = await rescanKeywordsOnItems(pool, 5000);
   console.log("重扫完成：");
   console.log(JSON.stringify(r, null, 2));
   process.exit(0);

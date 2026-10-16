@@ -1,11 +1,12 @@
 import { getPgPool } from "@/lib/db";
 import { normalizeItemUrl } from "../utils";
+import { combineImportance } from "../importance";
 
 export async function scanAndApplyKeywords(sourceId: string, url: string): Promise<string[] | null> {
   const pool = getPgPool();
   const targetUrl = normalizeItemUrl(url);
-  const item = await pool.query<{ source_id: string; url: string; title: string; content_json: string; capture_note: string; department_name: string }>(
-    `select i.source_id, i.url, i.title, i.content_json, i.capture_note, s.department_name
+  const item = await pool.query<{ source_id: string; url: string; title: string; content_json: string; capture_note: string; department_name: string; llm_value_level: string | null }>(
+    `select i.source_id, i.url, i.title, i.content_json, i.capture_note, s.department_name, i.llm_value_level
      from monitor_items i
      join monitor_sources s on s.id = i.source_id
      where i.source_id = $1 and i.url = $2`,
@@ -182,12 +183,13 @@ export async function scanAndApplyKeywords(sourceId: string, url: string): Promi
   }
 
   if (uniqueHitKeywords.size === 0) {
+    const finalLevel = combineImportance("普通内容", row.llm_value_level);
     await pool.query(
       `update monitor_items
        set keyword_score = 0, matched_keywords = null, matched_categories = null,
-           signal_hits = null, importance_level = '普通内容', is_starred = false
+           signal_hits = null, keyword_level = '普通内容', importance_level = $3, is_starred = $4
        where source_id = $1 and url = $2`,
-      [sourceId, targetUrl],
+      [sourceId, targetUrl, finalLevel, finalLevel === "重点内容"],
     );
     try {
       await scanAndApplyGenres(sourceId, url);
@@ -298,7 +300,9 @@ export async function scanAndApplyKeywords(sourceId: string, url: string): Promi
   const existingNoteRaw = row.capture_note ?? "";
   const newNote = existingNoteRaw.replace(/^【[^】]*得分\s*\d+[^】]*】\s*/, "").trim() || null;
 
-  const isStarred = level === "核心关注" || level === "重点内容";
+  // 最终档位 = 关键词档位 × 已有的 LLM 判断（规则见 importance.ts）。重扫只更新关键词这一半，不会冲掉 LLM 的判断。
+  const finalLevel = combineImportance(level, row.llm_value_level);
+  const isStarred = finalLevel === "核心关注" || finalLevel === "重点内容";
 
   const fundingBucket = matchedByCategory.get("B·强支持信号");
   const fundingKeywords = fundingBucket?.keywords ?? [];
@@ -348,6 +352,7 @@ export async function scanAndApplyKeywords(sourceId: string, url: string): Promi
          has_procurement = $12,
          has_pilot = $13,
          has_standards = $14,
+         keyword_level = $15,
          forecast_updated_at = now()
      where source_id = $1 and url = $2`,
     [
@@ -357,7 +362,7 @@ export async function scanAndApplyKeywords(sourceId: string, url: string): Promi
       JSON.stringify(matchedKeywordsStr),
       JSON.stringify(categorySummary),
       JSON.stringify(signalBucket),
-      level,
+      finalLevel,
       isStarred,
       newNote,
       docStatus,
@@ -365,6 +370,7 @@ export async function scanAndApplyKeywords(sourceId: string, url: string): Promi
       hasProcurement,
       hasPilot,
       hasStandards,
+      level,
     ],
   );
 

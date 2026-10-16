@@ -268,6 +268,9 @@ async function ensureMonitorSchemaInternal() {
     { name: "matched_genres", type: "jsonb" },
     { name: "signal_hits", type: "jsonb" },
     { name: "importance_level", type: "text" },
+    // 价值档位的两半（最终档位 importance_level 由这两列按 importance.ts 的规则算出）
+    { name: "keyword_level", type: "text" },
+    { name: "llm_value_level", type: "text" },
     // 创作者视角（中文版）。当年是手工加的列，没走这里，导致全新数据库缺这一列、
     // 视角补齐会失败；补进来后新库首次运行就会自动建好（已有库 if not exists 不受影响）。
     { name: "creator_lens", type: "text" },

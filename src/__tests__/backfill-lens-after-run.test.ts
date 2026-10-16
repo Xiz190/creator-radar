@@ -69,6 +69,7 @@ describe("backfillLensAfterRun", () => {
     const updates = sqls.filter((s) => s.trim().startsWith("update"));
     expect(updates).toHaveLength(2);
     expect(updates[0]).toContain("creator_lens = $3, importance_level");
+    expect(updates[0]).toContain("llm_value_level = $5");
     expect(updates[1]).toContain("creator_lens_en = $3");
     expect(updates[1]).not.toContain("importance_level");
   });

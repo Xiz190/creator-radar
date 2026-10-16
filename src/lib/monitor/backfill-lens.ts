@@ -5,6 +5,7 @@
 
 import type { Pool } from "pg";
 import { generateCreatorLens, generateCreatorLensEn, hasLlm } from "./creator-lens";
+import { combineImportance } from "./importance";
 
 export type BackfillLensResult = {
   ok: boolean;
@@ -57,8 +58,8 @@ export async function backfillMissingLens(pool: Pool, limit = 40): Promise<Backf
     };
   }
 
-  const { rows } = await pool.query<{ source_id: string; url: string; title: string; body: string }>(
-    `select source_id, url, title, coalesce(content_json::text,'') as body
+  const { rows } = await pool.query<{ source_id: string; url: string; title: string; body: string; keyword_level: string | null }>(
+    `select source_id, url, title, coalesce(content_json::text,'') as body, keyword_level
      from monitor_items
      where list_published_at >= $1 and coalesce(creator_lens,'') = ''
      order by list_published_at desc
@@ -71,10 +72,10 @@ export async function backfillMissingLens(pool: Pool, limit = 40): Promise<Backf
   for (const r of rows) {
     try {
       const { lens, valueLevel } = await generateCreatorLens(r.title, r.body);
-      const importance = valueLevel === "高" ? "重点内容" : valueLevel === "中" ? "中等重点" : "普通内容";
+      const importance = combineImportance(r.keyword_level, valueLevel);
       await pool.query(
-        `update monitor_items set creator_lens = $3, importance_level = $4 where source_id = $1 and url = $2`,
-        [r.source_id, r.url, lens, importance],
+        `update monitor_items set creator_lens = $3, importance_level = $4, llm_value_level = $5 where source_id = $1 and url = $2`,
+        [r.source_id, r.url, lens, importance, valueLevel],
       );
       filled += 1;
     } catch {
