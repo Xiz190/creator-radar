@@ -1,7 +1,8 @@
 // 一次性补数据：给「已有创作者视角、但还没存 LLM 价值判断」的条目补上 llm_value_level，
 // 并按 importance.ts 的规则重算最终档位。只存价值判断，不改已有的视角文字。
 // 先跑 scripts/rescan-keywords.ts 填好 keyword_level，再跑本脚本。
-// 用法：npx tsx --env-file=.env.local scripts/backfill-value-level.ts [N|all]   （默认 5 条，先试）
+// 用法：npx tsx --env-file=.env.local scripts/backfill-value-level.ts [N|all] [--redo]   （默认 5 条，先试）
+//   --redo：已有判断的也重判（评级标准改了之后用）
 import { getPgPool } from "@/lib/db";
 import { generateCreatorLens } from "@/lib/monitor/creator-lens";
 import { combineImportance } from "@/lib/monitor/importance";
@@ -9,6 +10,7 @@ import { combineImportance } from "@/lib/monitor/importance";
 async function main() {
   const arg = (process.argv[2] || "5").toLowerCase();
   const limit = arg === "all" ? 100000 : Number(arg) || 5;
+  const redo = process.argv.includes("--redo");
   const pool = getPgPool();
 
   const { rows } = await pool.query<{ source_id: string; url: string; title: string; body: string; keyword_level: string | null; importance_level: string | null }>(
@@ -16,9 +18,9 @@ async function main() {
      from monitor_items
      where list_published_at >= '2026-01-01'
        and coalesce(creator_lens,'') <> ''
-       and llm_value_level is null
+       and ($2 or llm_value_level is null)
      order by list_published_at desc limit $1`,
-    [limit],
+    [limit, redo],
   );
   console.log(`本次处理 ${rows.length} 条\n`);
 

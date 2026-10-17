@@ -109,6 +109,27 @@ export function hasLlm(): boolean {
  */
 export type CreatorAnalysis = { lens: string; valueLevel: "高" | "中" | "低" };
 
+// 价值等级的评级标准。2026-10 调过一次：旧版只有一句话，LLM 会把「对你的曲风不完全适用」
+// 这类保留意见也算进评级，连 Suno v6、Eleven v4 这种大版本都判「中」，全站「高」只占 2%。
+// 现在明确：评级看事件本身的分量，保留意见写进点评、不拿来降级。
+export const VALUE_RUBRIC =
+  `1) 第一行只输出"价值：高/中/低"。评的是**这件事本身对 AI 辅助创作者的分量**，不是它是否完美适合你：\n` +
+  `   - 高：主流创作工具（Suno、ElevenLabs、Runway、Pika、Luma、Krea、Midjourney、可灵、即梦等）发布新模型或重大版本；` +
+  `影响创作者的重要平台政策、版权或收益规则变化；重要的创作资助、比赛等机会，或临近截止的申报。\n` +
+  `   - 中：常规功能更新、实用教程、工作流或 prompt 技巧、行业分析与趋势、合作与融资新闻。\n` +
+  `   - 低：营销软文、「X 个最佳工具」式清单、跟音乐或视觉创作关系不大的泛 AI 新闻（通用大模型、算力、科研、行业报告等），` +
+  `以及跟创作工具和创作机会无关的音乐圈新闻（唱片公司人事、明星动态、周边商品、演出票务等）。\n` +
+  `   你对它的保留意见（比如对某种曲风支持不好、要人工收尾）写进点评里，**不要因此降低价值等级**。\n`;
+
+export function buildLensUserPrompt(title: string, body: string, rubric: string = VALUE_RUBRIC): string {
+  return (
+    `动态标题：${title}\n\n正文摘录：${(body || "").slice(0, 1500)}\n\n` +
+    `请分两部分回答：\n` +
+    rubric +
+    `2) 第二行起，按你的口吻规则写创作者视角点评（≤40字）。`
+  );
+}
+
 export async function generateCreatorLens(
   title: string,
   body: string,
@@ -117,12 +138,7 @@ export async function generateCreatorLens(
   const cfg = getLlm();
   if (!cfg) throw new Error("LLM 未配置（缺少 LLM_API_KEY）");
 
-  const user =
-    `动态标题：${title}\n\n正文摘录：${(body || "").slice(0, 1500)}\n\n` +
-    `请分两部分回答：\n` +
-    `1) 第一行只输出"价值：高/中/低"——判断这条对独立创作者的价值：` +
-    `大厂新模型/重大版本更新/重要创作机会或临近截止 = 高；实用教程/常规工具更新/prompt 技巧 = 中；蹭热点/边缘信息 = 低。\n` +
-    `2) 第二行起，按你的口吻规则写创作者视角点评（≤40字）。`;
+  const user = buildLensUserPrompt(title, body);
 
   const res = await fetch(cfg.baseUrl + "/chat/completions", {
     method: "POST",
