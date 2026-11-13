@@ -13,6 +13,22 @@ export const GENRE_LIST = [
   "其他",
 ];
 
+// 体裁名在库里存的是中文（scanner 写入），英文界面只换显示
+const GENRE_LABEL_EN: Record<string, string> = {
+  "发布更新": "Releases",
+  "教程技巧": "Tutorials",
+  "评测榜单": "Reviews & charts",
+  "机会招募": "Opportunities",
+  "访谈播客": "Interviews",
+  "行业报告": "Industry reports",
+  "政策版权": "Policy & copyright",
+  "其他": "Other",
+};
+
+export function genreLabel(genre: string, lang: "zh" | "en"): string {
+  return lang === "en" ? GENRE_LABEL_EN[genre] ?? genre : genre;
+}
+
 export function extractDateKey(s: string | undefined): string {
   if (!s) return "unknown";
   const t = String(s).trim();

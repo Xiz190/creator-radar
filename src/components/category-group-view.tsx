@@ -6,6 +6,7 @@ import { CategoryChip } from "@/components/category-chip";
 import { formatDateShort } from "@/lib/date-utils";
 import type { CategoryCount } from "@/hooks/use-item-list";
 import type { ContentItem } from "@/hooks/use-item-list";
+import { SourceName } from "@/components/source-name";
 
 type CategoryGroupViewProps = {
   categoriesWithCounts: CategoryCount[];
@@ -65,7 +66,7 @@ export function CategoryGroupView({ categoriesWithCounts, items, onSelectCategor
                     {formatDateShort(item.listPublishedAt)}
                   </span>
                   <span className="shrink-0 text-xs text-slate-500">
-                    {item.departmentName}
+                    <SourceName name={item.departmentName} />
                   </span>
                   <Link
                     href={`/items/${encodeURIComponent(item.sourceId)}?sourceId=${encodeURIComponent(item.sourceId)}&url=${encodeURIComponent(item.url)}`}

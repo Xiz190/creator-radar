@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LangText } from "@/components/lang-text";
 import { SiteHeader } from "@/components/site-header";
 import { ItemBreadcrumb } from "@/components/item-breadcrumb";
 import { ItemDetailTabs } from "@/components/item-detail-tabs";
@@ -120,14 +121,14 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
         <SiteHeader />
         <div className="mx-auto max-w-4xl px-6 py-12">
           <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm">
-            <div className="text-lg font-semibold">路由异常</div>
-            <p className="mt-2 text-slate-600">请通过动态资讯点击具体条目访问此页面。</p>
+            <div className="text-lg font-semibold"><LangText zh="链接不完整" en="Incomplete link" /></div>
+            <p className="mt-2 text-slate-600"><LangText zh="请从动态资讯里点开具体条目。" en="Open an item from the News Feed to see it here." /></p>
             <Link
               href="/inbox"
               scroll={false}
               className="mt-6 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm text-white"
             >
-              返回动态资讯
+              <LangText zh="返回动态资讯" en="Back to the News Feed" />
             </Link>
           </div>
         </div>
@@ -161,14 +162,14 @@ export default async function ItemPage({ params, searchParams }: ItemPageProps) 
         <SiteHeader />
         <div className="mx-auto max-w-4xl px-6 py-12">
           <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm">
-            <div className="text-lg font-semibold">条目不存在</div>
-            <p className="mt-2 text-slate-600">该动态条目可能已被移除或失效，请返回动态资讯查看最新内容。</p>
+            <div className="text-lg font-semibold"><LangText zh="找不到这条内容" en="Item not found" /></div>
+            <p className="mt-2 text-slate-600"><LangText zh="这条可能已被移除或失效，回到动态资讯看看最新的。" en="It may have been removed. Head back to the News Feed for the latest." /></p>
             <Link
               href="/inbox"
               scroll={false}
               className="mt-6 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm text-white"
             >
-              返回动态资讯
+              <LangText zh="返回动态资讯" en="Back to the News Feed" />
             </Link>
           </div>
         </div>

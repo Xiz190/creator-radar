@@ -63,6 +63,7 @@ export type PriorityLevelMeta = {
   minScore: number;
   /** 命中条件简述（用于 tooltip） */
   description: string;
+  descriptionEn: string;
 };
 
 export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
@@ -75,7 +76,8 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
     color: "#94a3b8",
     rank: 0,
     minScore: 0,
-    description: "未命中明显主题/结构/风险信号，作为普通监测内容。",
+    description: "没有命中明显的主题或风险信号，按普通内容收录。",
+    descriptionEn: "No strong topic or risk signal. Kept as a regular item.",
   },
   "中等重点": {
     level: "中等重点",
@@ -87,7 +89,8 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
     color: "#64748b",
     rank: 1,
     minScore: 20,
-    description: "命中部分关键词或政策标题结构，值得关注但非核心。",
+    description: "命中了部分关键词，值得看一眼，但不是核心。",
+    descriptionEn: "Matches some keywords. Worth a look, not essential.",
   },
   "重点内容": {
     level: "重点内容",
@@ -98,7 +101,8 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
     color: "#b23c17",
     rank: 2,
     minScore: 50,
-    description: "较高的关键词/结构得分，或命中多类主题 + 风险信号，优先阅读。",
+    description: "关键词得分较高，或同时命中多个主题和风险信号，建议优先读。",
+    descriptionEn: "High keyword score, or several topics plus a risk signal. Read these first.",
   },
   "核心关注": {
     level: "核心关注",
@@ -109,7 +113,8 @@ export const PRIORITY_LEVEL_META: Record<PriorityLevel, PriorityLevelMeta> = {
     color: "#b23c17",
     rank: 3,
     minScore: 90,
-    description: "高得分 + 风险/强执行/强主题信号叠加，属于最高优先级内容。",
+    description: "得分高，并且同时带有风险、执行或强主题信号，是最高优先级。",
+    descriptionEn: "High score plus risk, action or strong-topic signals. Top priority.",
   },
 };
 

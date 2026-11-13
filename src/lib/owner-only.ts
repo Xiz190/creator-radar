@@ -6,7 +6,6 @@
 export const OWNER_ONLY_PAGES = [
   "/monitor",      // 系统管理（任务、来源、关键词、诊断）
   "/keywords",     // 关键词管理
-  "/alerts",       // 提醒规则
   "/digest",       // 日报预览 / 发送
   "/settings",     // 数据备份与恢复
   "/stats",        // 个人统计

@@ -9,76 +9,51 @@ import {
 
 const FONT_SIZES: FontSize[] = ["sm", "md", "lg", "xl"];
 
-export function AccessibilityPanel() {
+type AccessibilityPanelProps = {
+  open: boolean;
+  onClose: () => void;
+  /** 手机上贴在顶栏下方展开的位置（由打开它的地方算好）；桌面为 null，贴设置按钮右下展开 */
+  mobileTop: number | null;
+};
+
+// 由页头「设置」菜单打开（原来自带一个太阳图标按钮，页头按钮太多，2026-11 收进设置菜单）
+export function AccessibilityPanel({ open, onClose, mobileTop }: AccessibilityPanelProps) {
   const prefs = usePrefs();
   const T = useT(prefs.language);
-  const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  // 手机上按钮在顶栏中间，面板若照桌面「贴按钮右边往左展开」会伸出屏幕左边（360 宽时超出约 47px）。
-  // 手机改为左右各留 16px、贴在按钮下方展开，过长就面板内滚动；桌面不变。
-  const [mobileTop, setMobileTop] = useState<number | null>(null);
-
-  function toggle() {
-    if (!open && panelRef.current && window.matchMedia("(max-width: 639px)").matches) {
-      setMobileTop(panelRef.current.getBoundingClientRect().bottom + 8);
-    } else if (!open) {
-      setMobileTop(null);
-    }
-    setOpen((v) => !v);
-  }
 
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose();
     }
     if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [open, onClose]);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") onClose();
     }
-    document.addEventListener("keydown", handler);
+    if (open) document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, []);
+  }, [open, onClose]);
 
   function reset() {
     prefs.setFontSize("md");
     prefs.setHighContrast(false);
     prefs.setReducedMotion(false);
     prefs.setDarkMode(null);
-    prefs.setLanguage("zh");
+    prefs.setLanguage("en");
   }
 
-  return (
-    <div className="relative shrink-0" ref={panelRef}>
-      {/* trigger */}
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={T("a11y.title")}
-        aria-expanded={open}
-        title={T("a11y.title")}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm transition ${
-          open
-            ? "border-[var(--brand-border)] bg-[var(--brand-tint)] text-[var(--brand)]"
-            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-        }`}
-      >
-        {/* sun/accessibility icon */}
-        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-        </svg>
-      </button>
+  if (!open) return null;
 
+  return (
+    <div className="absolute right-0 top-full z-40" ref={panelRef}>
       {/* panel — uses inline style for dark bg so CSS override catches it */}
       {open && (
         <div
-          className="absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+          className="mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
           style={
             mobileTop === null
               ? { minWidth: "280px" }
@@ -109,7 +84,7 @@ export function AccessibilityPanel() {
           <div className="space-y-4 p-4">
             {/* AI Language */}
             <div>
-              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <div className="mb-1 text-xs font-medium text-slate-500">
                 {T("a11y.language")}
               </div>
               <div className="mb-1.5 text-xs text-slate-400">
@@ -135,7 +110,7 @@ export function AccessibilityPanel() {
 
             {/* Font Size */}
             <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <div className="mb-2 text-xs font-medium text-slate-500">
                 {T("a11y.fontSize")}
               </div>
               <div className="flex gap-1.5">
@@ -165,7 +140,7 @@ export function AccessibilityPanel() {
 
             {/* Dark Mode */}
             <div>
-              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+              <div className="mb-2 text-xs font-medium text-slate-500">
                 {T("a11y.darkMode")}
               </div>
               <div className="flex gap-1.5">
@@ -219,6 +194,7 @@ export function AccessibilityPanel() {
 }
 
 function BrowserPushRow() {
+  const en = usePrefs().language === "en";
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [supported, setSupported] = useState(false);
 
@@ -235,17 +211,17 @@ function BrowserPushRow() {
     const result = await Notification.requestPermission();
     setPermission(result);
     if (result === "granted") {
-      new Notification("创作者雷达", { body: "浏览器通知已开启 ✓", icon: "/favicon.ico" });
+      new Notification(en ? "Creator Radar" : "创作者雷达", { body: en ? "Browser notifications are on ✓" : "浏览器通知已开启 ✓", icon: "/favicon.ico" });
     }
   }
 
-  const statusLabel = permission === "granted" ? "已开启 ✓" : permission === "denied" ? "已拒绝" : "未开启";
+  const statusLabel = permission === "granted" ? (en ? "On ✓" : "已开启 ✓") : permission === "denied" ? (en ? "Blocked" : "已拒绝") : (en ? "Off" : "未开启");
   const statusColor = permission === "granted" ? "text-emerald-600" : permission === "denied" ? "text-rose-500" : "text-slate-400";
 
   return (
     <div className="flex items-center justify-between">
       <div>
-        <span className="text-sm text-slate-700">浏览器推送通知</span>
+        <span className="text-sm text-slate-700">{en ? "Browser notifications" : "浏览器推送通知"}</span>
         <span className={`ml-2 text-[11px] ${statusColor}`}>{statusLabel}</span>
       </div>
       {permission !== "granted" && permission !== "denied" && (
@@ -254,7 +230,7 @@ function BrowserPushRow() {
           onClick={request}
           className="rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
         >
-          开启
+          {en ? "Turn on" : "开启"}
         </button>
       )}
     </div>

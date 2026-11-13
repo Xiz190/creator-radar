@@ -8,13 +8,15 @@ import { useT } from "@/lib/i18n";
 import { pickLens } from "@/lib/localized-fields";
 import { ImportanceBadge } from "@/components/importance-badge";
 import { SectionCard } from "@/components/section-card";
-import { categoryMeta, TOPIC_CATEGORIES, filterTopicCategories } from "@/lib/monitor/content-meta";
+import { categoryDisplayLabel, categoryMeta, TOPIC_CATEGORIES, filterTopicCategories } from "@/lib/monitor/content-meta";
 import { formatDateShortNoPad } from "@/lib/date-utils";
 import {
   fetchSubscriptions,
   groupSubscriptions,
   type SubscriptionRecord,
 } from "@/lib/subscription-utils";
+import { SourceName } from "@/components/source-name";
+import { sourceNameFor } from "@/lib/source-names";
 
 type DashboardData = {
   periodDays: number;
@@ -135,7 +137,8 @@ function DepartmentBarChart({
 }: {
   data: { departmentName: string; total: number; todayCount: number; series: { date: string; count: number }[] }[];
 }) {
-  const tr = useT(usePrefs().language);
+  const { language } = usePrefs();
+  const tr = useT(language);
   if (data.length === 0) {
     return <EmptyHint text={tr("dash.no-7d")} />;
   }
@@ -151,8 +154,8 @@ function DepartmentBarChart({
         return (
           <div key={d.departmentName} className="group">
             <div className="flex items-center justify-between text-xs">
-              <span className="truncate font-medium text-slate-700" title={d.departmentName}>
-                {d.departmentName}
+              <span className="truncate font-medium text-slate-700" title={sourceNameFor(d.departmentName, language)}>
+                <SourceName name={d.departmentName} />
               </span>
               <span className="shrink-0 text-slate-500">
                 {tr("dash.7d")} {d.total} <span className="text-slate-300">·</span> {tr("dash.today")} {d.todayCount}
@@ -648,8 +651,8 @@ export default function DashboardPage() {
                         {topSource && (
                           <div className="min-w-0">
                             <div className="text-[11px] text-slate-400">{tr("dash.stat.top-source")}</div>
-                            <div className="mt-0.5 truncate font-semibold text-slate-800" title={topSource.departmentName}>
-                              {topSource.departmentName} <span className="font-normal text-slate-400">{topSource.total}</span>
+                            <div className="mt-0.5 truncate font-semibold text-slate-800" title={sourceNameFor(topSource.departmentName, language)}>
+                              <SourceName name={topSource.departmentName} /> <span className="font-normal text-slate-400">{topSource.total}</span>
                             </div>
                           </div>
                         )}
@@ -728,8 +731,8 @@ export default function DashboardPage() {
                           return (
                             <div key={d.departmentName} className="group">
                               <div className="flex items-center justify-between text-xs">
-                                <span className="truncate font-medium text-slate-700" title={d.departmentName}>
-                                  {d.departmentName}
+                                <span className="truncate font-medium text-slate-700" title={sourceNameFor(d.departmentName, language)}>
+                                  <SourceName name={d.departmentName} />
                                 </span>
                                 <span className="shrink-0 text-slate-500">
                                   {tr("dash.7d")} {d.total} <span className="text-slate-300">·</span> {tr("dash.today")} {d.todayCount}
@@ -761,17 +764,12 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {personalizedTrends.followedKeywordStats.slice(0, 10).map((k) => {
-                          const meta = categoryMeta(k.category);
                           return (
                             <Link
                               key={`${k.keyword}::${k.category}`}
                               href={`/inbox?q=${encodeURIComponent(k.keyword)}`}
-                              className="inline-flex items-center rounded-full px-2.5 py-1 text-xs transition hover:scale-105 hover:underline underline-offset-2"
-                              style={{
-                                color: meta.color,
-                                background: `${meta.color}14`,
-                              }}
-                              title={`${k.keyword} · ${meta.label} · ${k.count}`}
+                              className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                              title={`${k.keyword} · ${categoryDisplayLabel(k.category, language)} · ${k.count}`}
                             >
                               {k.keyword}
                               <span className="ml-1 text-[10px] text-slate-400">{k.count}</span>

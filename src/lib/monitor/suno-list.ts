@@ -3,11 +3,16 @@ import type { MonitorListItem } from "@/lib/monitor/types";
 /**
  * Suno 官方博客（suno.com/blog）列表抓取器
  *
- * Suno 博客无 RSS，但列表页是服务端渲染的 HTML，每篇文章是一张卡片：
- *   <a class="group flex flex-col gap-0" href="/blog/<slug>">
- *     ...<h2 ...>标题</h2>
- *     <p ...><span>By 作者</span><span>·</span><span>Mar 26, 2026</span></p>...
- *   </a>
+ * Suno 博客无 RSS，但列表页是服务端渲染的 HTML，每篇文章是一个 <article>：
+ *   <article ...>
+ *     <a class="group flex flex-col" href="/blog/<slug>">...<h3>标题</h3></a>
+ *     <div><p>...<time dateTime="2026-10-01T20:35:00.000Z">Oct 1, 2026</time></p></div>
+ *   </article>
+ * 顶部 Featured 那篇同样是 <article>，标题在 <h2> 里。
+ *
+ * 2026-11 改版前标题是 <h2>、日期是 <a> 里的纯文本；改版后旧正则一张都匹配不上，
+ * 却不报错（卡片被当成"不完整"跳过），日志里长期显示"扫描 0"。所以现在按整个
+ * <article> 解析、h2/h3 都认、日期优先读 dateTime，并在页面有文章却一条没解析出来时抛错。
  *
  * 用法：runner.ts 注册 type = "suno"，listUrl 填 https://suno.com/blog
  * 内容为英文（AI 音乐工具更新 / 版本发布 / 政策变化），面向音乐人情报台的
@@ -62,30 +67,50 @@ export async function fetchSunoBlog(listUrl: string, limit: number): Promise<Mon
   }
 
   const html = await response.text();
-  const base = new URL(listUrl);
+  const items = parseSunoBlogList(html, listUrl, limit);
 
-  // 只认博客卡片锚点（class 以 "group flex flex-col" 开头），排除首图 hero / 分页 / 导航
-  const cardPattern =
-    /<a class="group flex flex-col[^"]*"\s+href="(\/blog\/[a-z0-9-]+)"([\s\S]*?)<\/a>/gi;
+  // 页面上有文章链接却一条都没解析出来 = 页面结构又变了，报错让抓取日志能看出来
+  if (items.length === 0 && /href="\/blog\/[a-z0-9-]+"/i.test(html)) {
+    throw new Error("suno 博客页面结构可能已变化：有文章链接但未解析出任何条目");
+  }
+
+  return items;
+}
+
+// 从 <article> 块里取 ISO 日期：优先 <time dateTime>，否则退回英文日期文本
+function extractDate(block: string): string | null {
+  const iso = block.match(/<time[^>]*dateTime="(\d{4}-\d{2}-\d{2})/i);
+  if (iso) return iso[1];
+  return normalizeEnglishDate(block.replace(/<[^>]+>/g, " "));
+}
+
+export function parseSunoBlogList(html: string, listUrl: string, limit: number): MonitorListItem[] {
+  const base = new URL(listUrl);
+  const articlePattern = /<article\b[^>]*>([\s\S]*?)<\/article>/gi;
 
   const items: MonitorListItem[] = [];
   const seen = new Set<string>();
   let m: RegExpExecArray | null;
 
-  while ((m = cardPattern.exec(html)) !== null) {
-    const path = m[1];
-    const block = m[2];
-    const slug = path.replace("/blog/", "");
-    if (slug.startsWith("page-") || slug === "opengraph-image") continue;
+  while ((m = articlePattern.exec(html)) !== null) {
+    const block = m[1];
+
+    // 文章链接：排除分类 / 分页 / 全部列表等非文章路径
+    const hrefs = [...block.matchAll(/href="(\/blog\/[a-z0-9-]+)"/gi)].map((h) => h[1]);
+    const path = hrefs.find((h) => {
+      const slug = h.replace("/blog/", "");
+      return !slug.startsWith("page-") && slug !== "opengraph-image" && slug !== "all";
+    });
+    if (!path) continue;
 
     const url = new URL(path, base).toString();
     if (seen.has(url)) continue;
 
-    const h2 = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
-    const title = h2
-      ? decodeEntities(h2[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim())
+    const heading = block.match(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/i);
+    const title = heading
+      ? decodeEntities(heading[1].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim())
       : "";
-    const date = normalizeEnglishDate(block);
+    const date = extractDate(block);
 
     // 标题或日期缺失的卡片跳过（保证入库数据干净）
     if (!title || !date) continue;

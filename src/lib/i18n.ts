@@ -13,7 +13,7 @@ const translations = {
   "nav.inbox":          { zh: "动态资讯",     en: "News Feed" },
   "nav.subscribe":      { zh: "关注设置",     en: "Subscriptions" },
   "nav.signals":        { zh: "信号雷达",     en: "Signal Radar" },
-  "nav.dashboard":      { zh: "数据趋势",     en: "Dashboard" },
+  "nav.dashboard":      { zh: "数据趋势",     en: "Trends" },
   "nav.monitor":        { zh: "系统管理",     en: "Admin" },
   "nav.notifications":  { zh: "通知",         en: "Alerts" },
   "nav.settings":       { zh: "设置",         en: "Settings" },
@@ -34,7 +34,7 @@ const translations = {
 
   // ── Inbox / Feed page ──
   "inbox.title":       { zh: "动态资讯", en: "News Feed" },
-  "inbox.subtitle":    { zh: "全部动态的统一入口，按视图快速切换，支持多维度筛选与检索。", en: "One unified feed — switch views and filter or search across every dimension." },
+  "inbox.subtitle":    { zh: "爬虫抓到的所有动态。可以切换视图，也可以筛选和搜索。", en: "Everything the crawlers picked up. Switch views, filter, or search." },
   "inbox.stat.total":  { zh: "当前内容", en: "Total items" },
   "inbox.stat.unread": { zh: "本页未读", en: "Unread on page" },
   "inbox.stat.key":    { zh: "本页重点 / 核心关注", en: "Key items / Priority" },
@@ -127,10 +127,6 @@ const translations = {
   "home.priority-note":  { zh: "其中 {n} 条值得重点关注", en: "{n} of them worth your attention" },
 
   // ── Home page stat cards ──
-  "home.stat.new-label":    { zh: "24 小时新增",  en: "Last 24h" },
-  "home.stat.new-unit":     { zh: "条动态更新", en: "updates" },
-  "home.stat.priority-label": { zh: "其中重点",  en: "Priority" },
-  "home.stat.priority-unit":  { zh: "条重点内容", en: "priority items" },
 
   // ── Home page quick links ──
   "home.link.signals":       { zh: "浏览信号雷达",            en: "Signal Radar" },
@@ -172,9 +168,8 @@ const translations = {
   "a11y.reset":             { zh: "重置默认",   en: "Reset" },
 
   // ── Workspace followup stat badge ──
-  "home.stat.followup-label": { zh: "待跟进",  en: "Follow-ups" },
-  "home.stat.followup-unit":  { zh: "条需处理", en: "items" },
-  "home.stat.followup-done":  { zh: "全部完成", en: "All done!" },
+  "home.followup.pending":  { zh: "待跟进 {n} 条", en: "Open follow-ups: {n}" },
+  "home.followup.none":     { zh: "没有待跟进", en: "No open follow-ups" },
 
   // ── Brief card ──
   "home.mustread.title":   { zh: "今日必读", en: "Must-read" },
@@ -374,7 +369,7 @@ const translations = {
   "detail.lens.label": { zh: "创作者视角", en: "Creator lens" },
   "detail.lens.note": { zh: "依据你的创作者画像生成，AI 只点评，判断和取舍仍由你定", en: "Written from your creator profile — the AI comments, you decide" },
   "detail.research.title": { zh: "我的研究", en: "My notes" },
-  "detail.research.desc": { zh: "记录你的备注、跟进状态和标签，让每条动态不只是“看过”。", en: "Notes, follow-up status and tags — so an item is more than just “seen”." },
+  "detail.research.desc": { zh: "给这条记下备注、跟进状态和标签。", en: "Add notes, a follow-up status and tags to this item." },
   "detail.research.saved": { zh: "已记录", en: "Saved" },
   "detail.research.set-status": { zh: "设置跟进状态", en: "Set follow-up" },
   "detail.research.tags": { zh: "{n} 个标签", en: "{n} tags" },
@@ -487,7 +482,7 @@ const translations = {
   "dash.load-failed": { zh: "加载失败", en: "Failed to load" },
   "dash.fastest": { zh: "增速最快：{name} 环比 {pct}%", en: "Fastest growing: {name}, {pct}% week over week" },
   "dash.most-active": { zh: "最活跃：{name}（近 7 日 {n} 条）", en: "Most active: {name} ({n} in 7 days)" },
-  "dash.title": { zh: "数据洞察", en: "Insights" },
+  "dash.title": { zh: "数据趋势", en: "Trends" },
   "dash.subtitle": { zh: "近 {n} 天动态趋势分析、关键变化与值得关注的发现", en: "Trends, changes and notable finds over the last {n} days" },
   "dash.last": { zh: "上次 {t}", en: "Updated {t}" },
   "dash.refresh": { zh: "刷新数据", en: "Refresh" },
@@ -499,7 +494,7 @@ const translations = {
   "dash.error": { zh: "数据加载失败：", en: "Couldn't load data: " },
   "dash.activity": { zh: "入库活动", en: "Ingest activity" },
   "dash.15w": { zh: "近 15 周", en: "Last 15 weeks" },
-  "dash.stat.total": { zh: "收录总量", en: "Total items" },
+  "dash.stat.total": { zh: "本期收录", en: "This period" },
   "dash.stat.unread-starred": { zh: "未读 / 已收藏", en: "Unread / starred" },
   "dash.stat.week": { zh: "本周新增", en: "New this week" },
   "dash.stat.daily": { zh: "本周日均", en: "Daily avg (week)" },
@@ -537,8 +532,8 @@ const translations = {
   "tabs.today.view-btn":   { zh: "查看 →",            en: "View →" },
 
   // ── Item action buttons ──
-  "tabs.item.add-read":    { zh: "加入待读",   en: "Add to Queue" },
-  "tabs.item.added-read":  { zh: "已加入待读", en: "In Queue" },
+  "tabs.item.add-read":    { zh: "加入待跟进",   en: "Add to follow-ups" },
+  "tabs.item.added-read":  { zh: "已在待跟进", en: "In follow-ups" },
   "tabs.item.clear":       { zh: "清除",       en: "Remove" },
   "tabs.item.updated":     { zh: "更新于",     en: "Updated" },
 

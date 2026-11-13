@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { HBarChart, StatGrid } from "@/components/insight-charts";
 import { fetchSubscriptions, groupSubscriptions } from "@/lib/subscription-utils";
 import { usePrefs } from "@/contexts/prefs-context";
+import { sourceNameFor } from "@/lib/source-names";
 import { useT } from "@/lib/i18n";
 
 // 条形图少于这么多行就不放进轮播：两根柱子飘在大卡片里只像空状态
@@ -37,6 +38,15 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
  * 箭头 / 圆点 / 左右滑 / 键盘 ←→ 切换，切换时淡入。
  * 数据为全量语料统计（源角色分布 / 内容时间线 / 规模总览）。
  */
+// 服务端统计按中文标签返回来源类型（见 lib/monitor/db/dashboard.ts 的 SOURCE_ROLE_LABELS），英文界面在这里换
+const SOURCE_ROLE_EN: Record<string, string> = {
+  "工具官方": "Tool blogs",
+  "垂直媒体": "Industry media",
+  "演出": "Live shows",
+  "机会": "Opportunities",
+  "其他": "Other",
+};
+
 export function HomeInsightCarousel() {
   const { language } = usePrefs();
   const T = useT(language);
@@ -93,10 +103,10 @@ export function HomeInsightCarousel() {
   }
   if (stats) {
     if (stats.sourceRoles.length >= MIN_BAR_ROWS) {
-      slides.push({ title: T("insight.source-roles"), body: <HBarChart rows={stats.sourceRoles} /> });
+      slides.push({ title: T("insight.source-roles"), body: <HBarChart rows={language === "en" ? stats.sourceRoles.map((r) => ({ ...r, label: SOURCE_ROLE_EN[r.label] ?? r.label })) : stats.sourceRoles} /> });
     }
     if (stats.topSources.length >= MIN_BAR_ROWS) {
-      slides.push({ title: T("insight.top-sources"), body: <HBarChart rows={stats.topSources} /> });
+      slides.push({ title: T("insight.top-sources"), body: <HBarChart rows={stats.topSources.map((r) => ({ ...r, label: sourceNameFor(r.label, language) }))} /> });
     }
     slides.push({
       title: T("insight.scale"),

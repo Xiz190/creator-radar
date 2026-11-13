@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/site-header";
 import { BackButton } from "@/components/back-button";
 import { ResearchListClient } from "@/components/research-list-client";
+import { LangText } from "@/components/lang-text";
 import {
   ensureMonitorSchema,
   getInboxItemsByFilter,
@@ -8,9 +9,6 @@ import {
 } from "@/lib/monitor/db";
 import { isDbAvailable } from "@/lib/db";
 import { generateMockItems } from "@/lib/monitor/mock";
-import {
-  ClipboardList,
-} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -96,8 +94,8 @@ export default async function ResearchPage() {
       {!dbAvailable && (
         <div className="border-b border-sky-200 bg-sky-50 px-6 py-3 text-sm text-sky-800">
           <div className="mx-auto flex max-w-5xl items-center justify-center gap-2">
-            <span className="font-medium">演示模式</span>
-            <span>当前展示模拟数据，可浏览完整功能界面。</span>
+            <span className="font-medium"><LangText zh="演示模式" en="Demo mode" /></span>
+            <span><LangText zh="当前是示例数据，功能都可以试。" en="Showing sample data. Every feature still works." /></span>
           </div>
         </div>
       )}
@@ -108,15 +106,11 @@ export default async function ResearchPage() {
         </div>
         {/* 页头 */}
         <section className="mb-6">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <ClipboardList className="h-4 w-4" aria-hidden />
-            <span>我的研究</span>
-          </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            你的个人研究空间
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <LangText zh="我的研究" en="My research" />
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            收藏、待跟进、备注 — 所有你的研究动作都在这里
+            <LangText zh="收藏、待跟进和备注都在这里。" en="Your starred items, follow-ups and notes." />
           </p>
         </section>
 
@@ -128,7 +122,7 @@ export default async function ResearchPage() {
 
         {/* 底部说明 */}
         <footer className="mt-12 border-t border-slate-200 pt-6 pb-4 text-center text-xs text-slate-400">
-          我的研究 · 数据保存在本地浏览器中
+          <LangText zh="这些数据只保存在当前浏览器里。" en="This data is saved in this browser only." />
         </footer>
       </div>
     </main>

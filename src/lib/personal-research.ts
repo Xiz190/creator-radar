@@ -16,6 +16,18 @@ export const FOLLOW_UP_STATUS_LABELS: Record<FollowUpStatus, string> = {
   done: "已完成",
 };
 
+export const FOLLOW_UP_STATUS_LABELS_EN: Record<FollowUpStatus, string> = {
+  none: "No status",
+  to_read: "To read",
+  reading: "Reading",
+  to_act: "To act",
+  done: "Done",
+};
+
+export function followUpLabel(status: FollowUpStatus, lang: "zh" | "en"): string {
+  return (lang === "en" ? FOLLOW_UP_STATUS_LABELS_EN : FOLLOW_UP_STATUS_LABELS)[status];
+}
+
 export const FOLLOW_UP_STATUS_ICONS: Record<FollowUpStatus, LucideIcon> = {
   none: Circle,
   to_read: BookOpen,
@@ -27,14 +39,16 @@ export const FOLLOW_UP_STATUS_ICONS: Record<FollowUpStatus, LucideIcon> = {
 export const FOLLOW_UP_STATUS_OPTIONS: Array<{
   value: FollowUpStatus;
   label: string;
+  labelEn: string;
   icon: LucideIcon;
   desc: string;
+  descEn: string;
 }> = [
-  { value: "none", label: "清除状态", icon: Circle, desc: "不设置跟进状态" },
-  { value: "to_read", label: "待读", icon: BookOpen, desc: "还没仔细看，先存着" },
-  { value: "reading", label: "在读", icon: Hourglass, desc: "正在研究中" },
-  { value: "to_act", label: "待行动", icon: Target, desc: "需要采取行动" },
-  { value: "done", label: "已完成", icon: Check, desc: "已处理完毕" },
+  { value: "none", label: "清除状态", labelEn: "Clear status", icon: Circle, desc: "不设置跟进状态", descEn: "No follow-up status" },
+  { value: "to_read", label: "待读", labelEn: "To read", icon: BookOpen, desc: "还没仔细看，先存着", descEn: "Saved to read properly later" },
+  { value: "reading", label: "在读", labelEn: "Reading", icon: Hourglass, desc: "正在研究中", descEn: "Looking into it now" },
+  { value: "to_act", label: "待行动", labelEn: "To act", icon: Target, desc: "需要采取行动", descEn: "Needs something from you" },
+  { value: "done", label: "已完成", labelEn: "Done", icon: Check, desc: "已处理完毕", descEn: "Dealt with" },
 ];
 
 export type PersonalResearchItem = {

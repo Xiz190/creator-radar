@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { fetchWithAuth } from "@/lib/fetch-with-auth";
 import { usePrefs } from "@/contexts/prefs-context";
+import { RefreshCw } from "lucide-react";
 
-export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; url: string; isMock?: boolean }) {
+const PILL = "inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50";
+
+// className 可覆盖外观：详情页正文缺失时用大按钮，操作栏的「更多」菜单里用菜单项样式
+export function RecaptureButton({ sourceId, url, isMock, className }: { sourceId: string; url: string; isMock?: boolean; className?: string }) {
   const en = usePrefs().language === "en";
   const label = en ? "Re-fetch text" : "重新抓取正文";
   const [loading, setLoading] = useState(false);
@@ -22,8 +26,8 @@ export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; u
         </button>
         {showTip && (
           <div className="absolute left-0 top-12 z-10 w-64 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg text-xs text-slate-600 leading-relaxed">
-            <div className="font-semibold text-slate-800 mb-1">演示模式</div>
-            当前运行在本地演示模式，内容为预置示例数据。真实部署后，点击此按钮可重新爬取原始网页正文。
+            <div className="font-semibold text-slate-800 mb-1">{en ? "Demo mode" : "演示模式"}</div>
+            {en ? "This is sample data. On a live deployment this button fetches the page text again." : "当前是预置的示例数据。真实部署后，点这个按钮会重新抓取原网页正文。"}
             <div className="mt-2 text-slate-400 font-mono break-all">{url}</div>
           </div>
         )}
@@ -56,9 +60,10 @@ export function RecaptureButton({ sourceId, url, isMock }: { sourceId: string; u
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+      className={className ?? PILL}
     >
-      {loading ? (en ? "Re-fetching…" : "重新抓取中…") : label}
+      {className ? <RefreshCw className="h-4 w-4" aria-hidden /> : null}
+      <span>{loading ? (en ? "Re-fetching…" : "重新抓取中…") : label}</span>
     </button>
   );
 }

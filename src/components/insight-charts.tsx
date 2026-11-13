@@ -1,5 +1,7 @@
 "use client";
 
+import { usePrefs } from "@/contexts/prefs-context";
+
 // 一组纯 SVG 情报可视化图，无第三方依赖，配色走 --brand（各台自动暖/冷）。
 // 预览用；选定后接进首页右栏。
 
@@ -169,7 +171,7 @@ export function StatGrid({
     <div className="grid grid-cols-2 gap-2">
       {cells.map((cell) => (
         <div key={cell.label} className="rounded-xl border border-slate-200 bg-white p-3">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400">{cell.label}</div>
+          <div className="text-[10px] text-slate-400">{cell.label}</div>
           <div className="mt-0.5 font-serif text-2xl font-bold tabular-nums text-slate-900">{cell.value}</div>
           {cell.spark && (
             <div className="mt-1">
@@ -217,6 +219,7 @@ export function TrendLine({
   width?: number;
   height?: number;
 }) {
+  const en = usePrefs().language === "en";
   const padX = 12;
   const padTop = 18;
   const padBottom = 22;
@@ -231,7 +234,12 @@ export function TrendLine({
   const area = `${line} L ${x(n - 1).toFixed(1)} ${height - padBottom} L ${x(0).toFixed(1)} ${height - padBottom} Z`;
   const peakIdx = points.reduce((mi, p, i) => (p.value > points[mi].value ? i : mi), 0);
   const labelIdx = [...new Set([0, peakIdx, n - 1])];
-  const monthOf = (label: string) => `${Number(label.slice(5)) || label}月`;
+  const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthOf = (label: string) => {
+    const m = Number(label.slice(5));
+    if (!m) return label;
+    return en ? MONTHS_EN[m - 1] ?? label : `${m}月`;
+  };
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full">

@@ -1,13 +1,17 @@
 "use client";
 
+// 信号侧栏（创作者版）：这条命中了哪些信号、原文提到了哪几类创作者相关的事、创作者视角怎么说。
+// AI 分析只给作者用（data-owner-only，公开站上访客点了会看到只读提示）。
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { categoryDisplayLabel, categoryTooltip } from "@/lib/monitor/content-meta";
+import { RadioTower, X } from "lucide-react";
+import { categoryDisplayLabel, categoryTooltip, getCategoryGroup } from "@/lib/monitor/content-meta";
+import { CREATOR_SIGNAL_KEYS, creatorSignalLabel, detectCreatorSignals } from "@/lib/monitor/creator-signals";
 import { formatDateShortSlash } from "@/lib/date-utils";
+import { ImportanceBadge } from "@/components/importance-badge";
+import { SourceName } from "@/components/source-name";
+import { usePrefs } from "@/contexts/prefs-context";
 import type { ContentItem } from "@/hooks/use-item-list";
-import {
-  Bot, RadioTower, Sparkles, Target,
-} from "lucide-react";
 
 interface AIAnalysisResult {
   forecastHigh: string;
@@ -15,8 +19,7 @@ interface AIAnalysisResult {
   forecastMid: string;
   forecastLow: string;
   reasoning: string;
-  confidence: number;
-  keySignals: string[];
+  source?: "doubao" | "llm" | "rule";
 }
 
 type SignalDrawerProps = {
@@ -26,71 +29,43 @@ type SignalDrawerProps = {
   detail?: Record<string, unknown>;
 };
 
-const getDefaultValues = (detail?: Record<string, unknown>) => {
-    if (!detail) {
-      return { high: "", midHigh: "", mid: "", low: "", notes: "" };
-    }
-    return {
-      high: (detail as { forecastHigh?: string }).forecastHigh || "",
-      midHigh: (detail as { forecastMidHigh?: string }).forecastMidHigh || "",
-      mid: (detail as { forecastMid?: string }).forecastMid || "",
-      low: (detail as { forecastLow?: string }).forecastLow || "",
-      notes: (detail as { forecastNotes?: string }).forecastNotes || "",
-    };
-  };
+// 四档确定性，换成创作者读得懂的说法
+const LEVELS: Array<{ key: keyof AIAnalysisResult; zh: string; en: string }> = [
+  { key: "forecastHigh", zh: "原文写明", en: "Stated in the source" },
+  { key: "forecastMidHigh", zh: "很可能", en: "Likely" },
+  { key: "forecastMid", zh: "有可能", en: "Possible" },
+  { key: "forecastLow", zh: "推测", en: "Speculative" },
+];
 
 export function SignalDrawer({ isOpen, onClose, item, detail }: SignalDrawerProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [values, setValues] = useState(() => getDefaultValues(detail));
-  const [aiHint, setAiHint] = useState<string | null>(null);
+  const { language } = usePrefs();
+  const en = language === "en";
+  const L = (zh: string, enText: string) => (en ? enText : zh);
+  // 分析结果记上"属于哪条、哪种语言"；换条目或换语言后自然作废，不用在 effect 里清空
+  const runKey = `${item?.url ?? ""}|${language}`;
+  const [aiRun, setAiRun] = useState<{ key: string; state: "loading" | "failed" | "done"; result?: AIAnalysisResult } | null>(null);
+  const current = aiRun?.key === runKey ? aiRun : null;
+  const ai = current?.state === "done" ? current.result ?? null : null;
+  const aiState = current?.state === "loading" ? "loading" : current?.state === "failed" ? "failed" : "idle";
 
   useEffect(() => {
-    if (detail) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setValues(getDefaultValues(detail));
-    }
-  }, [detail]);
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen, onClose]);
 
-  const hasForecast = Boolean(
-    values.high || values.midHigh || values.mid || values.low,
-  );
+  if (!isOpen || !item) return null;
 
-  async function handleSave() {
+  const summary = typeof detail?.summary === "string" ? detail.summary : null;
+  const lens = en ? item.creatorLensEn ?? item.creatorLens : item.creatorLens;
+  const signalCats = [...new Set(item.categories.filter((c) => getCategoryGroup(c.category) === "signal").map((c) => c.category))];
+  const cs = detectCreatorSignals({ title: item.title, summary, deadlineDate: item.deadlineDate });
+
+  async function analyze() {
     if (!item) return;
-    setIsSaving(true);
-    try {
-      const res = await fetch("/api/monitor/items/forecast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceId: item.sourceId,
-          url: item.url,
-          forecastHigh: values.high.trim() || null,
-          forecastMidHigh: values.midHigh.trim() || null,
-          forecastMid: values.mid.trim() || null,
-          forecastLow: values.low.trim() || null,
-          forecastNotes: values.notes.trim() || null,
-        }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setIsEditing(false);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleAnalyzeWithAI() {
-    if (!item) return;
-    setIsAnalyzing(true);
-    setAiHint(null);
-    setAiResult(null);
+    const key = runKey;
+    setAiRun({ key, state: "loading" });
     try {
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
@@ -98,375 +73,144 @@ export function SignalDrawer({ isOpen, onClose, item, detail }: SignalDrawerProp
         body: JSON.stringify({
           type: "analyze-item",
           title: item.title,
-          content: (detail as { summary?: string })?.summary || item.title,
-          summary: (detail as { summary?: string })?.summary,
+          content: summary || item.title,
+          summary,
           matchedSignals: item.categories.map((c) => c.category),
+          language,
         }),
       });
-      const data = await res.json();
-      if (data.ok && data.result) {
-        setAiResult(data.result);
-        const source = data.result.source || "rule";
-        if (source === "rule") {
-          setAiHint(
-            "提示：当前返回的是关键词规则结果。配置 API KEY 后可接入大模型。",
-          );
-          setTimeout(() => setAiHint(null), 12000);
-        } else {
-          setAiHint(
-            source === "doubao"
-              ? "已通过豆包生成分析结果。可点击应用到预估判断。"
-              : "已通过大模型生成分析结果。",
-          );
-          setTimeout(() => setAiHint(null), 10000);
-        }
-      } else {
-        setAiHint(`⚠ AI 分析失败：${data.message || "未知错误"}`);
-        setTimeout(() => setAiHint(null), 6000);
-      }
+      const data = (await res.json()) as { ok?: boolean; result?: AIAnalysisResult };
+      if (!data.ok || !data.result) throw new Error("bad");
+      setAiRun({ key, state: "done", result: data.result });
     } catch {
-      setAiHint("⚠ AI 分析失败：网络错误");
-      setTimeout(() => setAiHint(null), 6000);
-    } finally {
-      setIsAnalyzing(false);
+      setAiRun({ key, state: "failed" });
     }
   }
-
-  function handleToggleEdit() {
-    if (isEditing) {
-      setValues({
-        high: (detail as { forecastHigh?: string }).forecastHigh || "",
-        midHigh: (detail as { forecastMidHigh?: string }).forecastMidHigh || "",
-        mid: (detail as { forecastMid?: string }).forecastMid || "",
-        low: (detail as { forecastLow?: string }).forecastLow || "",
-        notes: (detail as { forecastNotes?: string }).forecastNotes || "",
-      });
-    }
-    setIsEditing(!isEditing);
-  }
-
-  if (!isOpen || !item) return null;
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="absolute bottom-0 right-0 top-0 flex w-full max-w-lg flex-col overflow-hidden bg-white shadow-xl sm:bottom-auto">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><RadioTower className="h-4 w-4" aria-hidden />信号分析</h2>
-            <p className="mt-0.5 truncate text-xs text-slate-500">
-              {item.title.slice(0, 40)}{item.title.length > 40 ? "..." : ""}
-            </p>
-          </div>
+      <div className="absolute inset-0 bg-slate-900/20" onClick={onClose} />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-label={L("信号分析", "Signal analysis")}
+        className="absolute bottom-0 right-0 top-0 flex w-full max-w-lg flex-col overflow-hidden border-l border-slate-200 bg-white shadow-xl"
+      >
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <RadioTower className="h-4 w-4" aria-hidden />
+            {L("信号分析", "Signal analysis")}
+          </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            aria-label={L("关闭", "Close")}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
-            ✕
+            <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">
-              {item.departmentName}
-            </span>
-            <span>{item.channelName}</span>
-            <span>· {formatDateShortSlash(item.listPublishedAt)}</span>
-            {item.keywordScore > 0 ? (
-              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-violet-700">
-                关键词得分 {item.keywordScore}
-              </span>
-            ) : null}
-          </div>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Target className="h-4 w-4" aria-hidden />结构化信号提取</h3>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div
-                className={`rounded-2xl border p-3 text-center ${
-                  item.hasFunding ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
-                }`}
-              >
-                <div className="text-xs text-slate-500">资金支持</div>
-                <div className={`mt-1 text-sm font-medium ${item.hasFunding ? "text-amber-700" : "text-slate-500"}`}>
-                  {item.hasFunding ? "✓ 已检测" : "—"}
-                </div>
-              </div>
-              <div
-                className={`rounded-2xl border p-3 text-center ${
-                  item.hasProcurement ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-white"
-                }`}
-              >
-                <div className="text-xs text-slate-500">采购机会</div>
-                <div className={`mt-1 text-sm font-medium ${item.hasProcurement ? "text-rose-700" : "text-slate-500"}`}>
-                  {item.hasProcurement ? "✓ 已检测" : "—"}
-                </div>
-              </div>
-              <div
-                className={`rounded-2xl border p-3 text-center ${
-                  item.hasPilot ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"
-                }`}
-              >
-                <div className="text-xs text-slate-500">试点示范</div>
-                <div className={`mt-1 text-sm font-medium ${item.hasPilot ? "text-indigo-700" : "text-slate-500"}`}>
-                  {item.hasPilot ? "✓ 已检测" : "—"}
-                </div>
-              </div>
-              <div
-                className={`rounded-2xl border p-3 text-center ${
-                  item.hasStandards ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"
-                }`}
-              >
-                <div className="text-xs text-slate-500">标准规范</div>
-                <div className={`mt-1 text-sm font-medium ${item.hasStandards ? "text-violet-700" : "text-slate-500"}`}>
-                  {item.hasStandards ? "✓ 已检测" : "—"}
-                </div>
-              </div>
+        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+          <section>
+            <div className="text-xs text-slate-500">
+              <SourceName name={item.departmentName} /> · {formatDateShortSlash(item.listPublishedAt)}
             </div>
+            <h3 className="mt-1.5 text-[15px] font-medium leading-snug text-slate-900">{item.title}</h3>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <ImportanceBadge level={item.importanceLevel} keywordScore={item.keywordScore} />
+              {item.keywordScore > 0 && <span className="tabular-nums text-slate-500">{L("关键词得分", "Keyword score")} {item.keywordScore}</span>}
+            </div>
+            {lens && <p className="mt-3 font-serif text-[15px] leading-snug text-[var(--brand)]">{lens}</p>}
           </section>
 
-          <div className="flex flex-wrap gap-2">
-            {item.categories.map((cat, idx) => (
-              <span
-                key={`${cat.category}-${idx}`}
-                className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-                title={categoryTooltip(cat.category)}
-              >
-                {categoryDisplayLabel(cat.category)}
-              </span>
-            ))}
-          </div>
-
-          {detail?.summary ? (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="text-sm font-semibold text-slate-900">内容摘要</h3>
-              <p className="mt-2 text-xs leading-6 text-slate-700">{String(detail.summary)}</p>
-            </section>
-          ) : null}
-
-          <section className="rounded-2xl border border-emerald-200 bg-white p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900"><Sparkles className="h-4 w-4" aria-hidden />预估判断（可编辑）</h3>
-                {aiHint ? <div className="mt-1 text-xs text-amber-700">{aiHint}</div> : null}
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button data-owner-only
-                  type="button"
-                  onClick={handleAnalyzeWithAI}
-                  disabled={isAnalyzing || isEditing}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    isAnalyzing
-                      ? "border border-amber-300 bg-amber-100 text-amber-700 cursor-wait"
-                      : "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                  }`}
-                >
-                  {isAnalyzing ? "AI分析中…" : "AI分析"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleToggleEdit}
-                  disabled={isSaving}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    isEditing
-                      ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                      : "bg-slate-900 text-white hover:bg-slate-800"
-                  }`}
-                >
-                  {isEditing ? "取消编辑" : "编辑预估"}
-                </button>
-                {isEditing ? (
-                  <button data-owner-only
-                    type="button"
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50"
-                  >
-                    {isSaving ? "保存中…" : "保存"}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            {isEditing || hasForecast ? (
-              <div className="space-y-3">
-                <div>
-                  <div className="mb-1 text-xs font-medium text-emerald-700">高确定性</div>
-                  {isEditing ? (
-                    <textarea
-                      value={values.high}
-                      onChange={(e) => setValues((v) => ({ ...v, high: e.target.value }))}
-                      rows={3}
-                      placeholder="高确定性的判断依据（公告明确写出的内容、数字、范围、截止日期等）"
-                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                    />
-                  ) : values.high ? (
-                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3 text-sm leading-6 text-slate-700">
-                      {values.high}
-                    </div>
-                  ) : null}
-                </div>
-                <div>
-                  <div className="mb-1 text-xs font-medium text-emerald-600">中高确定性</div>
-                  {isEditing ? (
-                    <textarea
-                      value={values.midHigh}
-                      onChange={(e) => setValues((v) => ({ ...v, midHigh: e.target.value }))}
-                      rows={3}
-                      placeholder="中高确定性的判断依据（方向明确，但具体数字/时间还不确定）"
-                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                    />
-                  ) : values.midHigh ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                      {values.midHigh}
-                    </div>
-                  ) : null}
-                </div>
-                <div>
-                  <div className="mb-1 text-xs font-medium text-slate-600">中确定性</div>
-                  {isEditing ? (
-                    <textarea
-                      value={values.mid}
-                      onChange={(e) => setValues((v) => ({ ...v, mid: e.target.value }))}
-                      rows={2}
-                      placeholder="中确定性的判断依据（有趋势信号，但具体方案尚不明朗）"
-                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-100"
-                    />
-                  ) : values.mid ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                      {values.mid}
-                    </div>
-                  ) : null}
-                </div>
-                <div>
-                  <div className="mb-1 text-xs font-medium text-slate-500">低确定性</div>
-                  {isEditing ? (
-                    <textarea
-                      value={values.low}
-                      onChange={(e) => setValues((v) => ({ ...v, low: e.target.value }))}
-                      rows={2}
-                      placeholder="低确定性的判断依据（走向存在争议，或尚未有具体信号）"
-                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-100"
-                    />
-                  ) : values.low ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
-                      {values.low}
-                    </div>
-                  ) : null}
-                </div>
-                <div>
-                  <div className="mb-1 text-xs font-medium text-slate-600">判断依据/备注</div>
-                  {isEditing ? (
-                    <textarea
-                      value={values.notes}
-                      onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
-                      rows={4}
-                      placeholder="支撑上述预估判断的依据"
-                      className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-700 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-100"
-                    />
-                  ) : values.notes ? (
-                    <div className="rounded-2xl border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700">
-                      {values.notes}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-
-            {aiResult ? (
-              <section className="mt-4 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-                <div className="flex items-center gap-2">
-                  <Bot className="h-5 w-5" aria-hidden />
-                  <h4 className="text-sm font-semibold text-amber-900">AI 智能分析结果</h4>
-                  <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-800">
-                    置信度 {aiResult.confidence}%
+          {signalCats.length > 0 && (
+            <section>
+              <h4 className="text-xs font-semibold text-slate-500">{L("信号类型", "Signal type")}</h4>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {signalCats.map((c) => (
+                  <span key={c} title={categoryTooltip(c, language)} className="rounded border border-slate-200 px-1.5 py-0.5 text-xs text-slate-700">
+                    {categoryDisplayLabel(c, language)}
                   </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {aiResult.forecastHigh ? (
-                    <div>
-                      <div className="text-xs font-medium text-emerald-700">高确定性</div>
-                      <div className="rounded-xl border border-emerald-100 bg-white p-2 text-sm leading-5 text-slate-700">
-                        {aiResult.forecastHigh}
-                      </div>
-                    </div>
-                  ) : null}
-                  {aiResult.forecastMidHigh ? (
-                    <div>
-                      <div className="text-xs font-medium text-emerald-600">中高确定性</div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-2 text-sm leading-5 text-slate-700">
-                        {aiResult.forecastMidHigh}
-                      </div>
-                    </div>
-                  ) : null}
-                  {aiResult.forecastMid ? (
-                    <div>
-                      <div className="text-xs font-medium text-slate-600">中确定性</div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-2 text-sm leading-5 text-slate-700">
-                        {aiResult.forecastMid}
-                      </div>
-                    </div>
-                  ) : null}
-                  {aiResult.forecastLow ? (
-                    <div>
-                      <div className="text-xs font-medium text-slate-500">低确定性</div>
-                      <div className="rounded-xl border border-slate-100 bg-white p-2 text-sm leading-5 text-slate-700">
-                        {aiResult.forecastLow}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                {aiResult.reasoning ? (
-                  <div className="mt-3">
-                    <div className="text-xs font-medium text-slate-600">推理依据</div>
-                    <div className="rounded-xl border border-slate-100 bg-white p-2 text-xs leading-5 text-slate-600">
-                      {aiResult.reasoning}
-                    </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h4 className="text-xs font-semibold text-slate-500">{L("原文提到了", "The source mentions")}</h4>
+            <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
+              {CREATOR_SIGNAL_KEYS.map((key) => (
+                <li key={key} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <span className="text-slate-700">{creatorSignalLabel(key, language)}</span>
+                  <span className={`tabular-nums ${cs[key] ? "font-medium text-[var(--brand)]" : "text-slate-300"}`}>
+                    {key === "deadline" && item.deadlineDate ? item.deadlineDate.slice(0, 10) : cs[key] ? "✓" : "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-xs text-slate-500">{L("按关键词识别，只说明原文提到了，不代表判断。", "Found by keywords. It shows what the text mentions, not a judgement.")}</p>
+          </section>
+
+          {summary && (
+            <section>
+              <h4 className="text-xs font-semibold text-slate-500">{L("摘要", "Summary")}</h4>
+              <p className="mt-2 text-sm leading-relaxed text-slate-700">{summary}</p>
+            </section>
+          )}
+
+          <section>
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-xs font-semibold text-slate-500">
+                {ai ? (ai.source === "rule" ? L("关键词规则判断", "Keyword-rule reading") : L("AI 分析", "AI analysis")) : L("接下来会怎样", "What happens next")}
+              </h4>
+              <button
+                type="button"
+                data-owner-only
+                onClick={analyze}
+                disabled={aiState === "loading"}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700 transition hover:border-slate-300 disabled:cursor-wait disabled:opacity-60"
+              >
+                {aiState === "loading" ? L("分析中…", "Analysing…") : ai ? L("重新分析", "Run again") : L("AI 分析", "Analyse with AI")}
+              </button>
+            </div>
+            {aiState === "failed" && <p className="mt-2 text-xs text-red-700">{L("分析没成功，稍后再试。", "Analysis failed. Try again later.")}</p>}
+            {ai ? (
+              <dl className="mt-3 space-y-3">
+                {LEVELS.filter((lv) => ai[lv.key]).map((lv) => (
+                  <div key={lv.key}>
+                    <dt className="text-xs font-medium text-slate-500">{en ? lv.en : lv.zh}</dt>
+                    <dd className="mt-0.5 text-sm leading-relaxed text-slate-700">{String(ai[lv.key])}</dd>
                   </div>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setValues({
-                      high: aiResult.forecastHigh || "",
-                      midHigh: aiResult.forecastMidHigh || "",
-                      mid: aiResult.forecastMid || "",
-                      low: aiResult.forecastLow || "",
-                      notes: aiResult.reasoning || "",
-                    });
-                    setAiResult(null);
-                  }}
-                  className="mt-3 w-full rounded-full bg-amber-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-amber-500"
-                >
-                  将 AI 分析结果应用到预估判断
-                </button>
-              </section>
-            ) : null}
+                ))}
+                {ai.reasoning && <p className="border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">{ai.reasoning}</p>}
+              </dl>
+            ) : (
+              <p className="mt-2 text-xs text-slate-500">
+                {L("按确定性从高到低，推测这条之后可能的走向。", "A read on where this goes next, from what the source states to what is speculation.")}
+              </p>
+            )}
           </section>
         </div>
 
-        <div className="border-t border-slate-200 bg-white p-4">
-          <div className="flex gap-2">
-            <Link
-              href={`/items/${encodeURIComponent(item.sourceId)}?sourceId=${encodeURIComponent(item.sourceId)}&url=${encodeURIComponent(item.url)}`}
-              className="flex-1 inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
-              onClick={onClose}
-            >
-              查看详情页 →
-            </Link>
-            <a
-              href={item.finalUrl || item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white transition hover:bg-slate-800"
-            >
-              打开原网址 →
-            </a>
-          </div>
+        <div className="flex gap-2 border-t border-slate-200 px-5 py-3">
+          <Link
+            href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
+            prefetch={false}
+            className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-center text-sm text-slate-700 transition hover:bg-slate-50"
+          >
+            {L("查看详情", "Open details")}
+          </Link>
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 rounded-full bg-slate-900 px-4 py-2 text-center text-sm text-white transition hover:bg-slate-700"
+          >
+            {L("打开原文 ↗", "Open original ↗")}
+          </a>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

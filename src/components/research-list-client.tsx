@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useCallback, use } from "react";
+import { useState, useMemo, useCallback, use, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   getAllPersonalResearch,
-  FOLLOW_UP_STATUS_LABELS,
+  followUpLabel,
   bulkSetFollowUpStatus,
   bulkDeletePersonalResearch,
   getAllTags,
@@ -18,6 +18,8 @@ import {
   ArrowLeftRight, Bell, ClipboardList, NotebookPen, Star, type LucideIcon,
 } from "lucide-react";
 import { StatusIcon } from "@/components/status-icon";
+import { usePrefs } from "@/contexts/prefs-context";
+import { SourceName } from "@/components/source-name";
 
 type StarredItem = {
   sourceId: string;
@@ -46,12 +48,12 @@ type SubscriptionItem = {
 
 type ResearchTab = "followup" | "starred" | "noted" | "subscriptions" | "compare";
 
-const TAB_CONFIG: Array<{ key: ResearchTab; label: string; icon: LucideIcon; desc: string }> = [
-  { key: "followup", label: "待跟进", icon: ClipboardList, desc: "需要处理的政策" },
-  { key: "starred", label: "收藏", icon: Star, desc: "收藏的重点政策" },
-  { key: "noted", label: "有备注", icon: NotebookPen, desc: "写过备注的政策" },
-  { key: "compare", label: "对比中", icon: ArrowLeftRight, desc: "待对比的政策列表" },
-  { key: "subscriptions", label: "订阅", icon: Bell, desc: "关键词与机构订阅" },
+const TAB_CONFIG: Array<{ key: ResearchTab; label: string; labelEn: string; icon: LucideIcon }> = [
+  { key: "followup", label: "待跟进", labelEn: "Follow-ups", icon: ClipboardList },
+  { key: "starred", label: "收藏", labelEn: "Starred", icon: Star },
+  { key: "noted", label: "有备注", labelEn: "With notes", icon: NotebookPen },
+  { key: "compare", label: "对比中", labelEn: "Comparing", icon: ArrowLeftRight },
+  { key: "subscriptions", label: "订阅", labelEn: "Follows", icon: Bell },
 ];
 
 function summarizeTitle(title: string, maxLen = 56): string {
@@ -66,6 +68,10 @@ function formatDate(iso: string): string {
 
 const ACTIVE_STATUSES: FollowUpStatus[] = ["to_read", "reading", "to_act"];
 
+function noopSubscribe() {
+  return () => {};
+}
+
 function ResearchListClient({
   starredItemsPromise,
   subscriptionsPromise,
@@ -73,6 +79,9 @@ function ResearchListClient({
   starredItemsPromise: Promise<StarredItem[]>;
   subscriptionsPromise: Promise<SubscriptionItem[]>;
 }) {
+  const en = usePrefs().language === "en";
+  const L = (zh: string, enText: string) => (en ? enText : zh);
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
   const starredItems = use(starredItemsPromise);
   const subscriptions = use(subscriptionsPromise);
   const [activeTab, setActiveTab] = useState<ResearchTab>("followup");
@@ -129,15 +138,18 @@ function ResearchListClient({
     subscriptions: subscriptions.length,
   };
 
+  // 列表数据全在浏览器本地存储里，服务端读不到：先渲染占位，挂载后再画，避免水合不一致
+  if (!mounted) return <div className="h-48 animate-pulse rounded-2xl bg-slate-100" aria-busy="true" />;
+
   return (
     <div>
       {/* 状态统计卡片 */}
       <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4">
         {[
-          { status: "to_read" as const, label: "待读", color: "sky" },
-          { status: "reading" as const, label: "在读", color: "amber" },
-          { status: "to_act" as const, label: "待行动", color: "violet" },
-          { status: "done" as const, label: "已完成", color: "emerald" },
+          { status: "to_read" as const, label: L("待读", "To read"), color: "sky" },
+          { status: "reading" as const, label: L("在读", "Reading"), color: "amber" },
+          { status: "to_act" as const, label: L("待行动", "To act"), color: "violet" },
+          { status: "done" as const, label: L("已完成", "Done"), color: "emerald" },
         ].map(({ status, label, color }) => {
           const count = researchItems.filter(
             (item) => item.followUpStatus === status,
@@ -165,7 +177,7 @@ function ResearchListClient({
       {/* 标签筛选 */}
       {allTags.length > 0 && (activeTab === "followup" || activeTab === "noted") && (
         <div className="mb-6">
-          <div className="mb-2 text-xs font-medium text-slate-500">按标签筛选</div>
+          <div className="mb-2 text-xs font-medium text-slate-500">{L("按标签筛选", "Filter by tag")}</div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -176,7 +188,7 @@ function ResearchListClient({
                   : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
               }`}
             >
-              全部
+              {L("全部", "All")}
             </button>
             {allTags.map((tag) => {
               const count = tagCounts[tag.name] ?? 0;
@@ -215,7 +227,7 @@ function ResearchListClient({
           >
             <span className="flex items-center gap-2">
               <tab.icon className="h-4 w-4" aria-hidden />
-              <span>{tab.label}</span>
+              <span>{en ? tab.labelEn : tab.label}</span>
               <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                 activeTab === tab.key
                   ? "bg-slate-900 text-white"
@@ -237,9 +249,9 @@ function ResearchListClient({
           {followupItems.length === 0 ? (
             <EmptyState
               icon={ClipboardList}
-              title="暂无待跟进的政策"
-              desc="看完政策后可以标记待跟进，这里会自动汇总"
-              actionText="去动态资讯看看"
+              title={L("没有待跟进的条目", "Nothing to follow up")}
+              desc={L("读到要跟进的条目时标记一下，就会出现在这里。", "Mark an item for follow-up and it shows up here.")}
+              actionText={L("去动态资讯看看", "Open the News Feed")}
               actionHref="/inbox"
             />
           ) : (
@@ -261,7 +273,7 @@ function ResearchListClient({
                       className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                     />
                     <span className="text-sm text-slate-600">
-                      已选 <span className="font-semibold text-slate-900">{selectedIds.size}</span> / {followupItems.length}
+                      {L("已选", "Selected")} <span className="font-semibold text-slate-900">{selectedIds.size}</span> / {followupItems.length}
                     </span>
                   </label>
                 </div>
@@ -269,9 +281,9 @@ function ResearchListClient({
                   {selectedIds.size > 0 && (
                     <>
                       {[
-                        { status: "reading" as const, label: "在读" },
-                        { status: "to_act" as const, label: "待行动" },
-                        { status: "done" as const, label: "已完成" },
+                        { status: "reading" as const, label: L("在读", "Reading") },
+                        { status: "to_act" as const, label: L("待行动", "To act") },
+                        { status: "done" as const, label: L("已完成", "Done") },
                       ].map((opt) => (
                         <button
                           key={opt.status}
@@ -286,13 +298,13 @@ function ResearchListClient({
                           }}
                           className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
                         >
-                          设为{opt.label}
+                          {L("设为", "Mark ")}{opt.label}
                         </button>
                       ))}
                       <button
                         type="button"
                         onClick={() => {
-                          if (!confirm(`确定要删除选中的 ${selectedIds.size} 条吗？`)) return;
+                          if (!confirm(L(`确定要删除选中的 ${selectedIds.size} 条吗？`, `Delete ${selectedIds.size} selected item(s)?`))) return;
                           const items = followupItems.filter((i) =>
                             selectedIds.has(`${i.sourceId}::${i.url}`)
                           );
@@ -302,7 +314,7 @@ function ResearchListClient({
                         }}
                         className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-100"
                       >
-                        删除
+                        {L("删除", "Delete")}
                       </button>
                     </>
                   )}
@@ -343,10 +355,10 @@ function ResearchListClient({
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs font-medium text-slate-500">
-                              {FOLLOW_UP_STATUS_LABELS[item.followUpStatus]}
+                              {followUpLabel(item.followUpStatus, en ? "en" : "zh")}
                             </span>
                             <span className="text-xs text-slate-400">
-                              更新于 {formatDate(item.updatedAt)}
+                              {L("更新于", "Updated")} {formatDate(item.updatedAt)}
                             </span>
                           </div>
                           <Link
@@ -397,9 +409,9 @@ function ResearchListClient({
           {starredItems.length === 0 ? (
             <EmptyState
               icon={Star}
-              title="暂无收藏的政策"
-              desc="遇到重要的政策可以点击收藏，这里会自动汇总"
-              actionText="去动态资讯看看"
+              title={L("还没有收藏", "Nothing starred yet")}
+              desc={L("在条目上点收藏，就会出现在这里。", "Star an item and it shows up here.")}
+              actionText={L("去动态资讯看看", "Open the News Feed")}
               actionHref="/inbox"
             />
           ) : (
@@ -413,9 +425,9 @@ function ResearchListClient({
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1 text-xs text-amber-600"><Star className="h-3 w-3" aria-hidden />已收藏</span>
+                        <span className="inline-flex items-center gap-1 text-xs text-amber-600"><Star className="h-3 w-3" aria-hidden />{L("已收藏", "Starred")}</span>
                         <span className="text-xs text-slate-400">
-                          {item.departmentName}
+                          <SourceName name={item.departmentName} />
                         </span>
                       </div>
                       <h3 className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-900 group-hover:text-slate-600">
@@ -442,9 +454,9 @@ function ResearchListClient({
           {notedItems.length === 0 ? (
             <EmptyState
               icon={NotebookPen}
-              title="暂无写过备注的政策"
-              desc="在政策详情页可以添加备注，记录你的想法和分析"
-              actionText="去动态资讯看看"
+              title={L("还没有写过备注", "No notes yet")}
+              desc={L("在条目详情页可以写备注。", "You can add notes on any item's detail page.")}
+              actionText={L("去动态资讯看看", "Open the News Feed")}
               actionHref="/inbox"
             />
           ) : (
@@ -460,7 +472,7 @@ function ResearchListClient({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs text-slate-400">
-                          更新于 {formatDate(item.updatedAt)}
+                          {L("更新于", "Updated")} {formatDate(item.updatedAt)}
                         </span>
                       </div>
                       <h3 className="mt-1 line-clamp-2 text-sm font-medium text-slate-900 group-hover:text-slate-600">
@@ -504,16 +516,16 @@ function ResearchListClient({
           {compareItems.length === 0 ? (
             <EmptyState
               icon={ArrowLeftRight}
-              title="暂无待对比的政策"
-              desc="在政策详情页或相关政策中加入对比，这里会自动汇总"
-              actionText="去动态资讯看看"
+              title={L("还没有加入对比的条目", "Nothing to compare")}
+              desc={L("在条目详情页点「加入对比」，就会出现在这里。", "Add items from their detail pages to compare them here.")}
+              actionText={L("去动态资讯看看", "Open the News Feed")}
               actionHref="/inbox"
             />
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-slate-600">
-                  已选择 <span className="font-semibold text-slate-900">{compareItems.length}</span> 条政策
+                  {L("已选择", "Selected")} <span className="font-semibold text-slate-900">{compareItems.length}</span> {L("条", "items")}
                 </div>
                 {compareItems.length >= 2 && (
                   <Link
@@ -521,7 +533,7 @@ function ResearchListClient({
                     className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-violet-600 px-4 text-sm font-medium text-white transition hover:bg-violet-700"
                   >
                     <span>⇄</span>
-                    <span>开始对比</span>
+                    <span>{L("开始对比", "Compare")}</span>
                   </Link>
                 )}
               </div>
@@ -539,7 +551,7 @@ function ResearchListClient({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-violet-600">⇄ 对比中</span>
+                        <span className="text-xs text-violet-600">⇄ {L("对比中", "Comparing")}</span>
                       </div>
                       <h3 className="mt-1 line-clamp-2 text-sm font-medium text-slate-900 group-hover:text-slate-600">
                         {summarizeTitle(item.title)}
@@ -550,7 +562,7 @@ function ResearchListClient({
               </div>
               {compareItems.length < 2 && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                  至少选择 2 条政策才能开始对比
+                  {L("至少选 2 条才能对比", "Pick at least 2 items to compare")}
                 </div>
               )}
             </div>
@@ -564,23 +576,23 @@ function ResearchListClient({
           {subscriptions.length === 0 ? (
             <EmptyState
               icon={Bell}
-              title="暂无订阅"
-              desc="订阅关键词或机构，第一时间获取相关政策更新"
-              actionText="管理订阅"
+              title={L("还没有关注", "No follows yet")}
+              desc={L("关注来源或关键词后，相关条目会优先出现。", "Follow a source or keyword and matching items move up.")}
+              actionText={L("管理关注", "Manage follows")}
               actionHref="/subscribe"
             />
           ) : (
             <div className="space-y-4">
               <SubscriptionSection
-                title="机构订阅"
+                title={L("关注的来源", "Sources")}
                 items={subscriptions.filter((s) => s.type === "department")}
               />
               <SubscriptionSection
-                title="关键词订阅"
+                title={L("关注的关键词", "Keywords")}
                 items={subscriptions.filter((s) => s.type === "keyword")}
               />
               <SubscriptionSection
-                title="分类订阅"
+                title={L("关注的分类", "Categories")}
                 items={subscriptions.filter((s) => s.type === "category")}
               />
               <div className="text-center pt-2">
@@ -588,7 +600,7 @@ function ResearchListClient({
                   href="/subscribe"
                   className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-800"
                 >
-                  管理全部订阅 →
+                  {L("管理全部关注 →", "Manage follows →")}
                 </Link>
               </div>
             </div>
@@ -606,6 +618,7 @@ function SubscriptionSection({
   title: string;
   items: SubscriptionItem[];
 }) {
+  const en = usePrefs().language === "en";
   if (items.length === 0) return null;
 
   return (
@@ -613,7 +626,7 @@ function SubscriptionSection({
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-          {items.length} 个
+          {items.length}
         </span>
       </div>
       <div className="space-y-2">
@@ -627,7 +640,7 @@ function SubscriptionSection({
                 {sub.targetName || sub.target}
               </div>
               <div className="mt-0.5 text-xs text-slate-500">
-                {formatDate(sub.createdAt)} 添加
+                {en ? `Added ${formatDate(sub.createdAt)}` : `${formatDate(sub.createdAt)} 添加`}
               </div>
             </div>
             <span
@@ -637,7 +650,7 @@ function SubscriptionSection({
                   : "bg-slate-200 text-slate-500"
               }`}
             >
-              {sub.enabled ? "已启用" : "已禁用"}
+              {sub.enabled ? (en ? "On" : "已启用") : (en ? "Off" : "已禁用")}
             </span>
           </div>
         ))}

@@ -1,5 +1,7 @@
 "use client";
 
+import { usePrefs } from "@/contexts/prefs-context";
+
 import { useState } from "react";
 
 type ExpandableTextProps = {
@@ -9,6 +11,7 @@ type ExpandableTextProps = {
 };
 
 export function ExpandableText({ text, maxLength = 120, className }: ExpandableTextProps) {
+  const en = usePrefs().language === "en";
   const [expanded, setExpanded] = useState(false);
   const needTruncate = text.length > maxLength && !expanded;
   const display = needTruncate ? text.slice(0, maxLength) + "..." : text;
@@ -24,7 +27,7 @@ export function ExpandableText({ text, maxLength = 120, className }: ExpandableT
         onClick={() => setExpanded(!expanded)}
         className="ml-1 text-sky-700 underline-offset-2 hover:text-sky-900 hover:underline"
       >
-        {expanded ? "收起" : "展开"}
+        {expanded ? (en ? "Show less" : "收起") : (en ? "Show more" : "展开")}
       </button>
         </>
       ) : null}
@@ -42,6 +45,7 @@ type ExpandableListProps = {
  * 附件/外链列表：每一行显示：[展开/全部显示
  */
 export function ExpandableList({ items, itemType = "相关文章/链接", maxLength = 120 }: ExpandableListProps) {
+  const en = usePrefs().language === "en";
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? items : items.slice(0, 5);
   const hasMore = items.length > 5;
@@ -70,7 +74,7 @@ export function ExpandableList({ items, itemType = "相关文章/链接", maxLen
               rel="noopener noreferrer"
               className="shrink-0 text-sky-700 underline"
             >
-              打开
+              {en ? "Open" : "打开"}
             </a>
           </li>
         ))}
@@ -81,7 +85,7 @@ export function ExpandableList({ items, itemType = "相关文章/链接", maxLen
           onClick={() => setExpanded(!expanded)}
           className="mt-3 text-xs text-sky-700 underline-offset-2 hover:underline"
         >
-          {expanded ? "收起" : `展开剩余 ${items.length - 5} 条`}
+          {expanded ? (en ? "Show less" : "收起") : (en ? `Show ${items.length - 5} more` : `展开剩余 ${items.length - 5} 条`)}
         </button>
       ) : null}
     </div>

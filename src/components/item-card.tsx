@@ -7,6 +7,7 @@ import { formatDateShort } from "@/lib/date-utils";
 import { usePrefs } from "@/contexts/prefs-context";
 import { pickLens } from "@/lib/localized-fields";
 import type { ContentItem } from "@/hooks/use-item-list";
+import { SourceName } from "@/components/source-name";
 
 type ItemCardProps = {
   item: ContentItem;
@@ -65,7 +66,7 @@ export function ItemCard({
                 </span>
               ) : null}
               <span className="truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 max-w-[120px] sm:max-w-none sm:text-xs">
-                {item.departmentName}
+                <SourceName name={item.departmentName} />
               </span>
               <span className="hidden sm:inline">{item.channelName}</span>
               <span className="text-[11px] sm:text-xs">· {formatDateShort(item.listPublishedAt)}</span>

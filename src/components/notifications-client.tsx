@@ -18,6 +18,7 @@ import { usePrefs } from "@/contexts/prefs-context";
 import {
   Bell, BookOpen, Mailbox, RadioTower, Star,
 } from "lucide-react";
+import { SourceName } from "@/components/source-name";
 
 function formatDate(iso: string, en: boolean): string {
   if (!iso) return "";
@@ -282,7 +283,7 @@ export function NotificationsClient() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs text-slate-500">
-                            {notif.departmentName}
+                            <SourceName name={notif.departmentName} />
                           </span>
                           {notif.type === "high_priority" && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">

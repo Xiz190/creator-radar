@@ -1,10 +1,13 @@
 "use client";
 
+import { usePrefs } from "@/contexts/prefs-context";
+import { SourceName } from "@/components/source-name";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import {
-  BarChart3, Inbox, Key, Landmark, Music, Save,
+  BarChart3, Inbox, Key, Landmark, Save,
 } from "lucide-react";
 
 type DashData = {
@@ -21,7 +24,6 @@ type LocalStats = {
   readingList: number;
   pinned: number;
   savedPresets: number;
-  alertRules: number;
 };
 
 function StatBlock({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
@@ -35,6 +37,8 @@ function StatBlock({ label, value, sub, accent }: { label: string; value: string
 }
 
 export default function StatsPage() {
+  const en = usePrefs().language === "en";
+  const L = (zh: string, enText: string) => (en ? enText : zh);
   const [dash, setDash] = useState<DashData | null>(null);
   const [local, setLocal] = useState<LocalStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +51,6 @@ export default function StatsPage() {
       const rl = JSON.parse(localStorage.getItem("inbox_reading_list") ?? "[]");
       const pinned = JSON.parse(localStorage.getItem("inbox_pinned_items") ?? "[]");
       const presets = JSON.parse(localStorage.getItem("inbox_saved_presets") ?? "[]");
-      const alerts = JSON.parse(localStorage.getItem("inbox_alert_rules") ?? "[]");
       const allTags = new Set<string>();
       for (const t of Object.values(tags) as string[][]) for (const tag of t) allTags.add(tag);
       setLocal({
@@ -57,7 +60,6 @@ export default function StatsPage() {
         readingList: rl.length,
         pinned: pinned.length,
         savedPresets: presets.length,
-        alertRules: alerts.length,
       });
     } catch {}
 
@@ -78,12 +80,12 @@ export default function StatsPage() {
 
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-800">首页</Link>
+            <Link href="/" className="hover:text-slate-800">{L("首页", "Home")}</Link>
             <span>/</span>
-            <span>个人统计</span>
+            <span>{L("个人统计", "My stats")}</span>
           </div>
-          <h1 className="mt-1 text-xl font-bold text-slate-900"><BarChart3 className="mr-1 inline h-4 w-4" aria-hidden />个人阅读统计</h1>
-          <p className="mt-1 text-sm text-slate-500">基于本地数据 + 近 30 天 API 数据生成，不上传任何隐私信息</p>
+          <h1 className="mt-1 text-xl font-bold text-slate-900"><BarChart3 className="mr-1 inline h-4 w-4" aria-hidden />{L("个人阅读统计", "My reading stats")}</h1>
+          <p className="mt-1 text-sm text-slate-500">{L("用这台浏览器里的记录和近 30 天的数据算出来，不上传任何个人信息。", "Built from this browser's records and the last 30 days of data. Nothing personal is uploaded.")}</p>
         </div>
 
         {/* API-based stats */}
@@ -99,19 +101,19 @@ export default function StatsPage() {
         ) : dash ? (
           <>
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-slate-700"><Inbox className="mr-1 inline h-3.5 w-3.5" aria-hidden />收件箱概览（近 {dash.periodDays} 天）</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-700"><Inbox className="mr-1 inline h-3.5 w-3.5" aria-hidden />{en ? `News Feed, last ${dash.periodDays} days` : `动态资讯概览（近 ${dash.periodDays} 天）`}</h2>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatBlock label="入库条目" value={dash.counts.total} sub="总量" />
-                <StatBlock label="已读" value={dash.counts.total - dash.counts.unread} sub={`完成率 ${readPct}%`} accent="var(--brand)" />
-                <StatBlock label="标星/核心" value={dash.counts.starred + dash.counts.urgent} sub={`参与率 ${engagementPct}%`} />
-                <StatBlock label="未读积压" value={dash.counts.unread} sub="待处理" />
+                <StatBlock label={L("入库条目", "Items in")} value={dash.counts.total} sub={L("总量", "total")} />
+                <StatBlock label={L("已读", "Read")} value={dash.counts.total - dash.counts.unread} sub={en ? `${readPct}% read` : `完成率 ${readPct}%`} accent="var(--brand)" />
+                <StatBlock label={L("标星/核心", "Starred or core")} value={dash.counts.starred + dash.counts.urgent} sub={en ? `${engagementPct}% of items` : `参与率 ${engagementPct}%`} />
+                <StatBlock label={L("未读", "Unread")} value={dash.counts.unread} sub={L("待处理", "to go")} />
               </div>
             </section>
 
             {/* Reading rate bar */}
             <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
               <div className="mb-2 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-700">阅读完成率</span>
+                <span className="font-medium text-slate-700">{L("阅读完成率", "Read rate")}</span>
                 <span className="text-slate-500">{readPct}%</span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-slate-100">
@@ -120,15 +122,12 @@ export default function StatsPage() {
                   style={{ width: `${readPct}%`, backgroundColor: readPct >= 80 ? "#10b981" : readPct >= 50 ? "#f59e0b" : "var(--brand)" }}
                 />
               </div>
-              <div className="mt-2 text-[11px] text-slate-400">
-                {readPct >= 80 ? "阅读习惯很棒！保持下去" : readPct >= 50 ? "继续保持，超过一半了" : "还有很多精彩内容等你探索"}
-              </div>
             </div>
 
             {/* Top departments */}
             {dash.departmentStats.length > 0 && (
               <section className="mt-6">
-                <h2 className="mb-3 text-sm font-semibold text-slate-700"><Landmark className="mr-1 inline h-3.5 w-3.5" aria-hidden />最活跃来源 Top 5</h2>
+                <h2 className="mb-3 text-sm font-semibold text-slate-700"><Landmark className="mr-1 inline h-3.5 w-3.5" aria-hidden />{L("最活跃的 5 个来源", "Top 5 sources")}</h2>
                 <div className="rounded-2xl border border-slate-200 bg-white p-5">
                   <div className="space-y-3">
                     {dash.departmentStats.slice(0, 5).map((d, i) => {
@@ -136,7 +135,7 @@ export default function StatsPage() {
                       return (
                         <div key={d.departmentName} className="flex items-center gap-3">
                           <span className="w-4 text-center text-xs text-slate-400">{i + 1}</span>
-                          <span className="w-28 truncate text-xs text-slate-700">{d.departmentName}</span>
+                          <span className="w-28 truncate text-xs text-slate-700"><SourceName name={d.departmentName} /></span>
                           <div className="flex-1 overflow-hidden rounded-full bg-slate-100 h-2">
                             <div className="h-full rounded-full" style={{ width: `${(d.total / max) * 100}%`, backgroundColor: "var(--brand)", opacity: 0.7 }} />
                           </div>
@@ -152,7 +151,7 @@ export default function StatsPage() {
             {/* Top keywords */}
             {dash.topKeywords.length > 0 && (
               <section className="mt-6">
-                <h2 className="mb-3 text-sm font-semibold text-slate-700"><Key className="mr-1 inline h-3.5 w-3.5" aria-hidden />高频关键词</h2>
+                <h2 className="mb-3 text-sm font-semibold text-slate-700"><Key className="mr-1 inline h-3.5 w-3.5" aria-hidden />{L("高频关键词", "Top keywords")}</h2>
                 <div className="flex flex-wrap gap-2">
                   {dash.topKeywords.slice(0, 15).map((kw) => (
                     <Link
@@ -173,27 +172,16 @@ export default function StatsPage() {
         {/* Local stats */}
         {local && (
           <section className="mt-6">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700"><Save className="mr-1 inline h-3.5 w-3.5" aria-hidden />本地使用数据</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700"><Save className="mr-1 inline h-3.5 w-3.5" aria-hidden />{L("这台浏览器里的数据", "Saved in this browser")}</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatBlock label="便签" value={local.notes} sub="条" />
-              <StatBlock label="已打标签条目" value={local.taggedItems} sub={`${local.tags} 种标签`} />
-              <StatBlock label="稍后读清单" value={local.readingList} sub="条" />
-              <StatBlock label="置顶条目" value={local.pinned} sub="条" />
-              <StatBlock label="已保存筛选方案" value={local.savedPresets} sub="个" />
-              <StatBlock label="提醒规则" value={local.alertRules} sub="条" />
+              <StatBlock label={L("便签", "Notes")} value={local.notes} />
+              <StatBlock label={L("已打标签条目", "Tagged items")} value={local.taggedItems} sub={en ? `${local.tags} tags` : `${local.tags} 种标签`} />
+              <StatBlock label={L("稍后读", "Read later")} value={local.readingList} />
+              <StatBlock label={L("置顶条目", "Pinned")} value={local.pinned} />
+              <StatBlock label={L("已保存的筛选", "Saved filters")} value={local.savedPresets} />
             </div>
           </section>
         )}
-
-        {/* Motivational footer */}
-        <div className="mt-8 rounded-2xl border border-dashed border-slate-200 p-5 text-center text-sm text-slate-400">
-          <Music className="mx-auto mb-2 h-7 w-7 text-slate-300" aria-hidden />
-          <p>持续关注行业动态，是独立创作者保持竞争力的关键。</p>
-          <div className="mt-3 flex justify-center gap-3">
-            <Link href="/inbox" className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-600 hover:bg-slate-50">→ 收件箱</Link>
-            <Link href="/signals" className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-600 hover:bg-slate-50">→ 信号雷达</Link>
-          </div>
-        </div>
       </div>
     </main>
   );

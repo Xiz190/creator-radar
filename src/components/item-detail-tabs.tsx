@@ -16,7 +16,7 @@ import { ChevronDown } from "lucide-react";
 import { useT, type TranslationKey } from "@/lib/i18n";
 import {
   type FollowUpStatus,
-  FOLLOW_UP_STATUS_LABELS,
+  followUpLabel,
   FOLLOW_UP_STATUS_OPTIONS,
   setNote as setNoteStorage,
   setFollowUpStatus as setFollowUpStatusStorage,
@@ -27,6 +27,8 @@ import {
   getTagColor,
   type ResearchTag,
 } from "@/lib/personal-research";
+import { SourceName } from "@/components/source-name";
+import { channelNameFor } from "@/lib/source-names";
 
 type CategoryType = {
   category: string;
@@ -157,7 +159,8 @@ function PersonalResearchCard({
   url: string;
   title: string;
 }) {
-  const t = useT(usePrefs().language);
+  const lang = usePrefs().language;
+  const t = useT(lang);
   const [note, setNote] = useState(() => {
     const research = getPersonalResearch(sourceId, url);
     return research?.note ?? "";
@@ -246,7 +249,7 @@ function PersonalResearchCard({
             }`}
           >
             <span>
-              {followUpStatus !== "none" ? FOLLOW_UP_STATUS_LABELS[followUpStatus] : t("detail.research.set-status")}
+              {followUpStatus !== "none" ? followUpLabel(followUpStatus, lang) : t("detail.research.set-status")}
             </span>
             <span className="text-[10px]">▾</span>
           </button>
@@ -269,8 +272,8 @@ function PersonalResearchCard({
                   >
                     <opt.icon className="mt-0.5 h-4 w-4" aria-hidden />
                     <div>
-                      <div className="font-medium">{opt.label}</div>
-                      <div className="text-xs text-slate-500">{opt.desc}</div>
+                      <div className="font-medium">{lang === "en" ? opt.labelEn : opt.label}</div>
+                      <div className="text-xs text-slate-500">{lang === "en" ? opt.descEn : opt.desc}</div>
                     </div>
                   </button>
                 ))}
@@ -513,26 +516,30 @@ export function ItemDetailTabs({
         </div>
       ) : null}
 
-      {/* 元信息 */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-        <span>{t("detail.meta.source")}{item.departmentName}</span>
-        <span className="text-slate-300">·</span>
-        <span>{t("detail.meta.channel")}{item.channelName}</span>
-        <span className="text-slate-300">·</span>
-        <span>{t("detail.meta.published")}{item.listPublishedAt}</span>
+      {/* 元信息：只留来源 · 栏目 · 发布日期（+截止）；抓取时间是调试信息，放进日期的悬停提示 */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+        <span className="font-medium text-slate-700"><SourceName name={item.departmentName} /></span>
+        {item.channelName ? (
+          <>
+            <span className="text-slate-300" aria-hidden>·</span>
+            <span>{channelNameFor(item.channelName, language)}</span>
+          </>
+        ) : null}
+        <span className="text-slate-300" aria-hidden>·</span>
+        <time
+          className="tabular-nums"
+          title={[
+            item.firstSeenAt ? `${t("detail.meta.first-seen")}${new Date(item.firstSeenAt).toLocaleString(dateLocale, { timeZone: "Asia/Shanghai" })}` : "",
+            item.capturedAt ? `${t("detail.meta.captured")}${new Date(item.capturedAt).toLocaleString(dateLocale, { timeZone: "Asia/Shanghai" })}` : "",
+          ].filter(Boolean).join("\n")}
+        >
+          {item.listPublishedAt}
+        </time>
         {/* 生效 / 有效期至是政策台的概念，资讯里抽到的日期多是误认，这里只保留对创作者有用的截止日期 */}
         {item.deadlineDate ? (
           <>
-            <span className="text-slate-300">·</span>
+            <span className="text-slate-300" aria-hidden>·</span>
             <span className="text-rose-700">{t("detail.meta.deadline")}{item.deadlineDate}</span>
-          </>
-        ) : null}
-        <span className="text-slate-300">·</span>
-        <span>{t("detail.meta.first-seen")}{item.firstSeenAt ? new Date(item.firstSeenAt).toLocaleString(dateLocale, { timeZone: "Asia/Shanghai" }) : "-"}</span>
-        {item.capturedAt ? (
-          <>
-            <span className="text-slate-300">·</span>
-            <span>{t("detail.meta.captured")}{new Date(item.capturedAt).toLocaleString(dateLocale, { timeZone: "Asia/Shanghai" })}</span>
           </>
         ) : null}
       </div>
@@ -552,20 +559,9 @@ export function ItemDetailTabs({
           initialRead={item.isRead}
           onCompareClick={handleCompareToggle}
           isInCompare={isInCompare()}
+          originalUrl={item.finalUrl || item.url}
+          isMock={isMock}
         />
-      </div>
-
-      {/* 原网址 + 重新抓取（返回走页面顶部面包屑，不再重复） */}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <a
-          href={item.finalUrl || item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex h-10 items-center rounded-full border border-slate-300 bg-white px-5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-        >
-          {t("detail.open-original")}
-        </a>
-        <RecaptureButton sourceId={item.sourceId} url={item.url} isMock={isMock} />
       </div>
 
       <div className="mt-6 space-y-6">

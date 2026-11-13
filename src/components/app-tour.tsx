@@ -2,46 +2,59 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePrefs } from "@/contexts/prefs-context";
 
 type Step = {
-  title: string;
-  desc: string;
-  selector?: string; // CSS selector of element to highlight
-  hint?: string;     // keyboard shortcut or badge text
+  title: { zh: string; en: string };
+  desc: { zh: string; en: string };
+  tour?: string; // data-tour 值：要高亮的元素（不用 title 选，title 会随语言变）
 };
 
 const STEPS: Step[] = [
   {
-    title: "⌘K 命令面板",
-    desc: "按 ⌘K（Mac）或 Ctrl+K（Windows）随时弹出命令面板，快速跳转任意页面或功能，无需鼠标。",
-    selector: "button[title='命令面板 (⌘K)']",
-    hint: "⌘K",
+    title: { zh: "搜索与 ⌘K", en: "Search and ⌘K" },
+    desc: {
+      zh: "点「搜索」或按 ⌘K（Windows 上是 Ctrl+K）。输入页面名可以直接跳过去，输入其他词就搜全部条目。",
+      en: "Click Search or press ⌘K (Ctrl+K on Windows). Type a page name to jump there, or any other word to search every item.",
+    },
+    tour: "palette",
   },
   {
-    title: "信号雷达",
-    desc: "不是所有动态都值得关注。信号雷达自动识别高价值内容：AI工具更新、创作机会、申报截止、版权政策。",
-    selector: "a[href='/signals']",
+    title: { zh: "信号雷达", en: "Signal Radar" },
+    desc: {
+      zh: "信号雷达把条目分成五类：AI 工具更新、创作机会、截止预警、行业观察、版权与平台政策。",
+      en: "Signal Radar sorts items into five types: AI tool updates, creative opportunities, deadlines, industry watch, and copyright & platform policy.",
+    },
   },
   {
-    title: "收件箱键盘导航",
-    desc: "在收件箱页面，用 J/K 上下切换条目，R 标记已读，S 收藏重点。不需要鼠标，读完一批只需几秒。",
-    hint: "J · K · R · S",
+    title: { zh: "动态资讯的键盘操作", en: "Keyboard in the News Feed" },
+    desc: {
+      zh: "在动态资讯页，J / K 上下切换条目，R 标记已读，S 收藏。",
+      en: "In the News Feed, J and K move between items, R marks one read, and S stars it.",
+    },
   },
   {
-    title: "周报生成器",
-    desc: "在信号雷达页面，筛选好当前关注的信号后，点击「生成周报」即可一键生成 Markdown 格式的情报周报，可直接复制到 Notion / 飞书 / 备忘录。",
-    selector: "button",
-    hint: "信号页 → 生成周报",
+    title: { zh: "生成周报", en: "Weekly brief" },
+    desc: {
+      zh: "在信号雷达页筛好信号后，点「生成周报」，会得到一份 Markdown 周报，可以贴进 Notion、飞书或备忘录。",
+      en: "On Signal Radar, filter the signals you want and click Weekly brief. You get a Markdown summary to paste into Notion or your notes.",
+    },
   },
   {
-    title: "辅助功能面板",
-    desc: "点击 A 图标可调整字体大小、切换深色模式、开启高对比度和减少动画，同时支持中英文界面切换。",
-    selector: "button[title='辅助功能 / Accessibility']",
+    title: { zh: "辅助功能", en: "Accessibility" },
+    desc: {
+      zh: "在「设置 → 辅助功能」里可以调字号、切深色模式、开高对比度、减少动画，也能切换中英文。",
+      en: "Under Settings → Accessibility you can change text size, dark mode, contrast and motion, and switch between English and Chinese.",
+    },
+    tour: "settings",
   },
   {
-    title: "关于本项目",
-    desc: "点击「关于」按钮可查看技术栈、数据来源与设计决策说明——这是一个面向独立音乐创作者的行业情报平台，作为研究生申请作品集案例。",
-    selector: "button[title='关于本项目']",
+    title: { zh: "关于这个项目", en: "About this project" },
+    desc: {
+      zh: "「设置 → 关于这个项目」里写了技术栈、数据来源和设计取舍。这是一个给独立音乐创作者用的行业情报台，也是我研究生申请作品集里的一个案例。",
+      en: "Settings → About this project covers the tech stack, data sources and design trade-offs. Creator Radar is an industry radar for independent music creators, and one case study in my grad-school portfolio.",
+    },
+    tour: "settings",
   },
 ];
 
@@ -55,7 +68,9 @@ export function AppTour({ open, onClose }: Props) {
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const prevHighlightEl = useRef<Element | null>(null);
 
+  const en = usePrefs().language === "en";
   const current = STEPS[step];
+  const selector = current.tour ? `[data-tour="${current.tour}"]` : null;
 
   // Highlight target element
   useEffect(() => {
@@ -73,10 +88,10 @@ export function AppTour({ open, onClose }: Props) {
       (prevHighlightEl.current as HTMLElement).style.outlineOffset = "";
     }
 
-    if (current.selector) {
-      const el = document.querySelector(current.selector);
+    if (selector) {
+      const el = document.querySelector(selector);
       if (el) {
-        (el as HTMLElement).style.outline = "3px solid #7c3aed";
+        (el as HTMLElement).style.outline = "3px solid var(--brand)";
         (el as HTMLElement).style.outlineOffset = "3px";
         el.scrollIntoView({ block: "center", behavior: "smooth" });
         setHighlightRect(el.getBoundingClientRect());
@@ -89,7 +104,7 @@ export function AppTour({ open, onClose }: Props) {
       setHighlightRect(null);
       prevHighlightEl.current = null;
     }
-  }, [open, step, current.selector]);
+  }, [open, step, selector]);
 
   // Keyboard nav
   useEffect(() => {
@@ -147,15 +162,8 @@ export function AppTour({ open, onClose }: Props) {
           <div className="px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-semibold text-slate-900">{current.title}</h3>
-                  {current.hint && (
-                    <kbd className="rounded bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-700">
-                      {current.hint}
-                    </kbd>
-                  )}
-                </div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{current.desc}</p>
+                <h3 className="text-base font-semibold text-slate-900">{en ? current.title.en : current.title.zh}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{en ? current.desc.en : current.desc.zh}</p>
               </div>
               <button
                 type="button"
@@ -187,7 +195,7 @@ export function AppTour({ open, onClose }: Props) {
                     onClick={() => setStep((s) => s - 1)}
                     className="rounded-full border border-slate-200 px-4 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
                   >
-                    ← 上一步
+                    {en ? "← Back" : "← 上一步"}
                   </button>
                 )}
                 <button
@@ -195,12 +203,12 @@ export function AppTour({ open, onClose }: Props) {
                   onClick={() => (isLast ? onClose() : setStep((s) => s + 1))}
                   className="rounded-full bg-violet-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-violet-700"
                 >
-                  {isLast ? "完成 ✓" : "下一步 →"}
+                  {isLast ? (en ? "Done" : "完成") : (en ? "Next →" : "下一步 →")}
                 </button>
               </div>
             </div>
             <div className="mt-2 text-right text-[11px] text-slate-400">
-              {step + 1} / {STEPS.length} · 按 ← → 导航，ESC 关闭
+              {step + 1} / {STEPS.length} · {en ? "← → to move, Esc to close" : "按 ← → 切换，Esc 关闭"}
             </div>
           </div>
         </div>

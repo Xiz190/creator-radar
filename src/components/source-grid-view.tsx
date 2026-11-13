@@ -2,6 +2,7 @@
 
 import type { SourceTreeNode } from "@/hooks/use-item-list";
 import { usePrefs } from "@/contexts/prefs-context";
+import { channelCount, channelNameFor, sourceNameFor } from "@/lib/source-names";
 import { pickSourceName } from "@/lib/localized-fields";
 
 type SourceGridViewProps = {
@@ -31,14 +32,14 @@ export function SourceGridView({ sourcesTree, onSelectDepartment }: SourceGridVi
         >
           <div className="flex w-full items-center justify-between">
             <span className="text-sm font-semibold text-slate-900">
-              {pickSourceName(dept, language) || dept.departmentName}
+              {sourceNameFor(pickSourceName(dept, language) || dept.departmentName, language)}
             </span>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
               {en ? `${dept.totalCount} items` : `${dept.totalCount} 条`}
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span>{en ? `${dept.channels.length} channels` : `${dept.channels.length} 个栏目`}</span>
+            <span>{channelCount(dept.channels.length, language)}</span>
             {dept.unread > 0 ? (
               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">
                 {en ? `${dept.unread} unread` : `${dept.unread} 未读`}
@@ -51,7 +52,7 @@ export function SourceGridView({ sourcesTree, onSelectDepartment }: SourceGridVi
                 key={ch.sourceId}
                 className="rounded-full bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600"
               >
-                {ch.channelName}
+                {channelNameFor(ch.channelName, language)}
               </span>
             ))}
             {dept.channels.length > 4 ? (

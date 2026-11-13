@@ -17,6 +17,7 @@ import {
   categoryDisplayLabel,
   categoryTooltip,
   getCategoryStyle,
+  localizeCategoryStyle,
   isSignalCategory,
   isTopicCategory,
 } from "@/lib/monitor/content-meta";
@@ -30,8 +31,9 @@ import {
   type MatchedSubscription,
 } from "@/lib/subscription-utils";
 import {
-  Clock, Hand, Newspaper, Printer, RadioTower, RefreshCw, Search, Target,
+  Clock, Newspaper, Printer, RefreshCw, Search, Target,
 } from "lucide-react";
+import { SourceName } from "@/components/source-name";
 
 type SignalItem = {
   sourceId: string;
@@ -84,13 +86,6 @@ type SortMode = "signalStrength" | "firstSeen" | "priority";
 function formatDate(iso: string): string {
   if (!iso) return "";
   return iso.split("T")[0];
-}
-
-function isToday(iso: string): boolean {
-  if (!iso) return false;
-  const dateStr = iso.split("T")[0];
-  const today = new Date().toISOString().split("T")[0];
-  return dateStr === today;
 }
 
 function getTopSignalCategory(
@@ -315,18 +310,6 @@ export default function SignalsPage() {
     return items.filter((item) => getItemMatches(item).length > 0).slice(0, 6);
   }, [items, subscribedGroups, getItemMatches]);
 
-  const stats = useMemo(() => {
-    const todayCount = items.filter((i) => isToday(i.firstSeenAt || i.listPublishedAt)).length;
-    const coreCount = items.filter(
-      (i) => normalizePriorityLevel(i.importanceLevel) === "核心关注",
-    ).length;
-    const highlightCount = items.filter(
-      (i) => normalizePriorityLevel(i.importanceLevel) === "重点内容",
-    ).length;
-    const totalCount = items.length;
-
-    return { todayCount, coreCount, highlightCount, totalCount };
-  }, [items]);
 
   const signalDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -466,11 +449,10 @@ export default function SignalsPage() {
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <SiteHeader />
       {!dbAvailable && (
-        <div className="border-b border-amber-200 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-6 py-3">
+        <div className="border-b border-sky-200 bg-sky-50 px-6 py-3">
           <div className="mx-auto flex max-w-6xl items-center justify-center gap-3">
-            <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-            <span className="text-sm font-medium text-amber-800">{en ? "Demo mode" : "演示模式"}</span>
-            <span className="hidden text-sm text-amber-700 sm:inline">{en ? "· Showing sample data — real signals appear once the database is connected" : "· 当前数据为示例内容，连接数据库后将显示真实情报"}</span>
+            <span className="text-sm font-medium text-sky-800">{en ? "Demo mode" : "演示模式"}</span>
+            <span className="hidden text-sm text-sky-700 sm:inline">{en ? "· Showing sample data — real signals appear once the database is connected" : "· 当前数据为示例内容，连接数据库后将显示真实情报"}</span>
           </div>
         </div>
       )}
@@ -483,17 +465,13 @@ export default function SignalsPage() {
         <section className="mb-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <RadioTower className="h-4 w-4" aria-hidden />
-                <span>{en ? "Signal Radar" : "信号雷达"}</span>
-              </div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                {en ? "High-value signals in the feed" : "发现动态中的高价值信号"}
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                {en ? "Signal Radar" : "信号雷达"}
               </h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 max-w-2xl text-sm text-slate-600">
                 {en
-                  ? "Deadlines, tool updates, creative opportunities and other key signals, picked out automatically so you can judge what matters fast"
-                  : "自动识别内容中的截止预警、工具更新、创作机会等关键信号，帮你快速判断动态价值"}
+                  ? "Every item is sorted by signal type: tool updates, opportunities, deadlines, industry watch, and copyright & platform policy. Pick a type below to filter."
+                  : "每条动态按信号类型归类：工具更新、创作机会、截止预警、行业观察、版权与平台政策。点下面的类型筛选。"}
               </p>
             </div>
             <Link
@@ -507,15 +485,14 @@ export default function SignalsPage() {
 
           {showGuide && (
           <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-500">
-            <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-4 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex items-start gap-3">
-                <Hand className="h-6 w-6" aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-amber-800">{en ? "Welcome to Signal Radar" : "欢迎来到信号雷达"}</div>
-                  <p className="mt-1 text-xs text-amber-700">
+                  <div className="text-sm font-medium text-slate-900">{en ? "How this page works" : "信号页怎么用"}</div>
+                  <p className="mt-1 text-xs text-slate-600">
                     {en
-                      ? "This is where high-value signals surface. Follow sources or keywords and matching items show up first."
-                      : "这里帮你快速发现高价值情报信号。关注来源或关键词后，匹配的内容会优先展示。"}
+                      ? "Follow a source or keyword, and matching items move to the top of this list."
+                      : "关注某个来源或关键词后，匹配到的条目会排到这个列表最前面。"}
                   </p>
                 </div>
                 <button
@@ -524,7 +501,7 @@ export default function SignalsPage() {
                     setShowGuide(false);
                     localStorage.setItem("signals_guide_seen", "true");
                   }}
-                  className="shrink-0 text-amber-600 hover:text-amber-800 transition"
+                  className="shrink-0 text-slate-400 hover:text-slate-700 transition"
                 >
                   ×
                 </button>
@@ -533,37 +510,6 @@ export default function SignalsPage() {
           </div>
         )}
 
-        {/* 核心数字概览 */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">{en ? "New signals today" : "今日新增信号"}</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">
-                {stats.todayCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">{en ? "new items" : "条新动态"}</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">{en ? "Core" : "核心关注"}</div>
-              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]">
-                {stats.coreCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">{en ? "top priority" : "条最高优先级"}</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">{en ? "Key" : "重点内容"}</div>
-              <div className="mt-1 text-2xl font-semibold text-[var(--brand)]/70">
-                {stats.highlightCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">{en ? "high priority" : "条高优先级"}</div>
-            </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-xs text-slate-500">{en ? "Total signals" : "情报总数"}</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">
-                {stats.totalCount}
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">{en ? "items with a signal" : "条带信号内容"}</div>
-            </div>
-          </div>
         </section>
 
         {/* 你的关注信号 */}
@@ -612,7 +558,7 @@ export default function SignalsPage() {
               <div className="space-y-2">
                 {subscribedItems.map((item) => {
                   const topSignal = getTopSignalCategory(item.categories);
-                  const signalStyle = topSignal ? getCategoryStyle(topSignal) : null;
+                  const signalStyle = topSignal ? localizeCategoryStyle(getCategoryStyle(topSignal), language) : null;
                   const matches = getItemMatches(item);
                   return (
                     <Link
@@ -637,7 +583,7 @@ export default function SignalsPage() {
                             )}
                             <SubscriptionBadge matches={matches} compact />
                             <span className="text-xs text-slate-500">
-                              {item.departmentName}
+                              <SourceName name={item.departmentName} />
                             </span>
                           </div>
                           <h3 className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-900 group-hover:text-slate-700">
@@ -656,7 +602,7 @@ export default function SignalsPage() {
         {/* 信号类型分布 */}
         <section className="mb-8">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-slate-900">{en ? "Signals by type" : "信号类型分布"}</h2>
+            <h2 className="text-base font-semibold text-slate-900">{en ? "Filter by signal type" : "按信号类型筛选"}</h2>
             {selectedSignalTypes.size > 0 && (
               <button
                 type="button"
@@ -667,32 +613,33 @@ export default function SignalsPage() {
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="flex flex-wrap gap-2">
             {signalDistribution.map((sg) => {
-              const style = getCategoryStyle(sg.category);
               const isSelected = selectedSignalTypes.has(sg.category);
               return (
                 <button
                   key={sg.category}
                   type="button"
                   onClick={() => toggleSignalType(sg.category)}
-                  className={`rounded-2xl border p-4 text-left transition ${
+                  title={sg.valueDesc}
+                  aria-pressed={isSelected}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition ${
                     isSelected
-                      ? `${style.chip} border-2 shadow-sm`
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : sg.count === 0
+                        ? "border-slate-200 bg-white text-slate-400 hover:border-slate-300"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                   }`}
                 >
-                  <div className="text-2xl font-semibold">{sg.count}</div>
-                  <div className={`mt-1 text-sm font-medium ${isSelected ? "" : "text-slate-800"}`}>
-                    {sg.displayLabel}
-                  </div>
-                  <div className={`mt-0.5 text-xs ${isSelected ? "opacity-80" : "text-slate-500"}`}>
-                    {sg.valueDesc}
-                  </div>
+                  {sg.displayLabel}
+                  <span className={`tabular-nums text-xs ${isSelected ? "text-white/70" : "text-slate-400"}`}>{sg.count}</span>
                 </button>
               );
             })}
           </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {en ? `Counts are from the latest ${items.length} items.` : `数字按最近 ${items.length} 条统计。`}
+          </p>
         </section>
 
         {/* 热门领域信号 */}
@@ -974,7 +921,7 @@ export default function SignalsPage() {
                 const priorityMeta = getPriorityMeta(item.importanceLevel);
                 const topSignal = getTopSignalCategory(item.categories);
                 const topicCats = getTopicCategories(item.categories).slice(0, 3);
-                const signalStyle = topSignal ? getCategoryStyle(topSignal) : null;
+                const signalStyle = topSignal ? localizeCategoryStyle(getCategoryStyle(topSignal), language) : null;
                 const itemMatches = !subscriptionsLoading ? getItemMatches(item) : [];
 
                 return (
@@ -1002,7 +949,7 @@ export default function SignalsPage() {
                             <SubscriptionBadge matches={itemMatches} compact />
                           )}
                           <span className="text-xs text-slate-400">
-                            {item.departmentName}
+                            <SourceName name={item.departmentName} />
                           </span>
                           {topicCats.map((tc) => (
                             <span

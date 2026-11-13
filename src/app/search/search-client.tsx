@@ -8,6 +8,7 @@ import { SIGNAL_CATEGORIES } from "@/lib/monitor/content-meta";
 import {
   CircleHelp, LoaderCircle, Search,
 } from "lucide-react";
+import { SourceName } from "@/components/source-name";
 
 type SearchItem = {
   sourceId: string;
@@ -92,7 +93,7 @@ function ContentCard({ item, q }: { item: ContentHit; q: string }) {
         dangerouslySetInnerHTML={{ __html: highlight(item.title || (en ? "(untitled)" : "（无标题）"), q) }}
       />
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-        {item.departmentName && <span>{item.departmentName}</span>}
+        {item.departmentName && <span><SourceName name={item.departmentName} /></span>}
         {item.channelName && item.channelName !== item.departmentName && <span>· {item.channelName}</span>}
         {pub && <span>· {pub}</span>}
       </div>

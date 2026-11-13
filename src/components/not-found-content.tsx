@@ -56,7 +56,7 @@ export function NotFoundContent() {
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { icon: ChartColumn, label: en ? "Insights" : "数据洞察", href: "/dashboard" },
+            { icon: ChartColumn, label: en ? "Trends" : "数据趋势", href: "/dashboard" },
             { icon: Sparkles, label: en ? "Forecast" : "预估中心", href: "/forecast" },
             { icon: ClipboardList, label: en ? "Research" : "我的研究", href: "/research" },
             { icon: Settings, label: en ? "Subscriptions" : "关注设置", href: "/subscribe" },

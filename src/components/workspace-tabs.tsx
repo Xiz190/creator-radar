@@ -2,28 +2,24 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  Bell, BookOpen, ClipboardList, Flame, Hourglass, Inbox, MailOpen, NotebookPen, Star, Target, type LucideIcon,
+  Bell, BookmarkCheck, BookmarkPlus, ClipboardList, Flame, Hourglass, Inbox, MailOpen, NotebookPen, Star, Target, type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   getAllPersonalResearch,
-  FOLLOW_UP_STATUS_LABELS,
-  FOLLOW_UP_STATUS_OPTIONS,
+  followUpLabel,
   type PersonalResearchItem,
   type FollowUpStatus,
   setFollowUpStatus as setFollowUpStatusStorage,
   getTagColor,
 } from "@/lib/personal-research";
-import { SubscriptionBadge } from "@/components/subscription-badge";
 import {
   fetchSubscriptions,
   groupSubscriptions,
-  matchItemSubscriptions,
   calculateFollowScore,
   sortByFollowPriority,
   type SubscriptionRecord,
-  type MatchedSubscription,
   type FollowMatchResult,
 } from "@/lib/subscription-utils";
 import {
@@ -35,6 +31,7 @@ import { usePrefs } from "@/contexts/prefs-context";
 import { useT, type TranslationKey } from "@/lib/i18n";
 import { StatusIcon } from "@/components/status-icon";
 import { pickLens } from "@/lib/localized-fields";
+import { SourceName } from "@/components/source-name";
 
 const ACTIVE_STATUSES: FollowUpStatus[] = ["to_read", "reading", "to_act"];
 
@@ -46,27 +43,17 @@ export function WorkspaceFollowupBadge() {
     const all = getAllPersonalResearch();
     return all.filter((item) => ACTIVE_STATUSES.includes(item.followUpStatus)).length;
   }, []);
-  const [loaded] = useState(true);
 
-  if (!loaded) {
-    return (
-      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-3 sm:rounded-2xl sm:px-4 sm:py-4">
-        <div className="h-3 w-12 bg-emerald-500/30 rounded animate-pulse" />
-        <div className="mt-1 h-7 w-10 bg-emerald-500/30 rounded animate-pulse sm:mt-2" />
-        <div className="mt-1 h-3 w-16 bg-emerald-500/20 rounded animate-pulse sm:mt-2" />
-      </div>
-    );
-  }
-
+  // 首页报头里的一句话，不再是毛玻璃数字块
+  if (count === 0) return <span>{T("home.followup.none")}</span>;
   return (
-    <div className="relative rounded-xl border border-white/10 bg-white/5 px-3 py-3 sm:rounded-2xl sm:px-4 sm:py-4">
-      <div className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[var(--brand)] opacity-70 sm:right-3 sm:top-3" />
-      <div className="text-[10px] text-white/65 sm:text-xs">{T("home.stat.followup-label")}</div>
-      <div className="mt-1 text-2xl font-bold tabular-nums text-white sm:mt-1.5 sm:text-3xl sm:font-semibold">{count}</div>
-      <div className="mt-0.5 text-[10px] text-white/60 sm:mt-1 sm:text-xs">
-        {count > 0 ? T("home.stat.followup-unit") : T("home.stat.followup-done")}
-      </div>
-    </div>
+    <Link
+      href="/research"
+      prefetch={false}
+      className="text-slate-700 underline decoration-slate-300 underline-offset-4 transition hover:text-slate-900 hover:decoration-slate-500"
+    >
+      {T("home.followup.pending", { n: count })}
+    </Link>
   );
 }
 
@@ -194,7 +181,7 @@ export function WorkspaceNotificationCard() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-500">{notif.departmentName}</span>
+                <span className="text-[11px] text-slate-500"><SourceName name={notif.departmentName} /></span>
               </div>
               <div className="mt-0.5 line-clamp-1 text-xs font-medium text-slate-800">
                 {notif.policyTitle}
@@ -245,7 +232,10 @@ function formatDate(iso: string): string {
 export function WorkspaceTabs({
   todayItems,
   starredItems,
+  excludeUrls = [],
 }: {
+  /** 已在首页「今日必读」里出现的条目，「今日」列表里跳过，避免同一条出现两次 */
+  excludeUrls?: string[];
   todayItems: WorkspaceItem[];
   starredItems: WorkspaceItem[];
 }) {
@@ -301,21 +291,16 @@ export function WorkspaceTabs({
     [subscribedGroups],
   );
 
-  const matchItem = useCallback(
-    (item: WorkspaceItem): MatchedSubscription[] => {
-      return getFollowInfo(item).allMatches.slice(0, 2);
-    },
-    [getFollowInfo],
-  );
-
   const todayItemsWithFollow = useMemo(() => {
-    if (!subsLoaded) return todayItems;
+    const skip = new Set(excludeUrls);
+    const pool = todayItems.filter((i) => !skip.has(i.url));
+    if (!subsLoaded) return pool;
     return sortByFollowPriority(
-      todayItems,
+      pool,
       (item) => getFollowInfo(item),
       (item) => item.keywordScore,
     );
-  }, [todayItems, subsLoaded, getFollowInfo]);
+  }, [todayItems, subsLoaded, getFollowInfo, excludeUrls]);
 
   const followedTodayItems = useMemo(() => {
     if (!subsLoaded) return [];
@@ -355,28 +340,12 @@ export function WorkspaceTabs({
   const hasSubscriptions = subsLoaded && (subscribedGroups.departments.length > 0 || subscribedGroups.keywords.length > 0);
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
       {hasSubscriptions && followCount > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Target className="h-5 w-5 shrink-0 text-[var(--brand)]" />
-            <div>
-              <div className="text-sm font-medium text-slate-900">
-                {T("tabs.today.count", { n: followCount })}
-              </div>
-              <div className="text-xs text-slate-500">
-                {T("tabs.today.sources", { d: subscribedGroups.departments.length, k: subscribedGroups.keywords.length })}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActiveTab("today")}
-            className="shrink-0 rounded-full bg-sky-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-sky-700"
-          >
-            {T("tabs.today.view-btn")}
-          </button>
-        </div>
+        <p className="mb-3 text-sm text-slate-600">
+          {T("tabs.today.count", { n: followCount })}
+          <span className="text-slate-500"> · {T("tabs.today.sources", { d: subscribedGroups.departments.length, k: subscribedGroups.keywords.length })}</span>
+        </p>
       )}
 
       {!hasSubscriptions && subsLoaded && (
@@ -471,7 +440,7 @@ export function WorkspaceTabs({
                     <div className="mb-2 flex items-center gap-2">
                       <StatusIcon status={status} className="h-3.5 w-3.5" />
                       <span className="text-xs font-medium text-slate-500">
-                        {FOLLOW_UP_STATUS_LABELS[status]}
+                        {followUpLabel(status, language)}
                       </span>
                       <span className="text-[10px] text-slate-400">{items.length}</span>
                     </div>
@@ -590,67 +559,45 @@ export function WorkspaceTabs({
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <ul className="divide-y divide-slate-200">
               {todayItemsWithFollow.slice(0, 8).map((item) => {
-                const itemMatches = subsLoaded ? matchItem(item) : [];
-                const followInfo = subsLoaded ? getFollowInfo(item) : null;
                 const isInResearch = loaded && followupItems.some(
                   (f) => f.sourceId === item.sourceId && f.url === item.url
                 );
-                const isFollowed = followInfo?.isFollowed ?? false;
+                const lens = pickLens(item, language);
                 return (
-                  <div
-                    key={`${item.sourceId}-${item.url}`}
-                    className={`group rounded-2xl border p-4 transition hover:shadow-sm ${
-                      isFollowed
-                        ? "border-slate-200 bg-white hover:border-slate-300"
-                        : "border-slate-100 bg-slate-50/40 hover:border-slate-200 hover:bg-white"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs text-slate-400">
-                            {item.departmentName}
-                          </span>
-                          {subsLoaded && itemMatches.length > 0 && (
-                            <SubscriptionBadge matches={itemMatches} compact />
-                          )}
-                        </div>
-                        <Link
-                          href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
-                          className="mt-1 block line-clamp-2 text-sm font-medium text-slate-900 hover:text-slate-700"
-                        >
-                          {item.title}
-                        </Link>
-                        {pickLens(item, language) && (
-                          <p className="mt-1 font-serif text-[13px] leading-snug text-[var(--brand)] line-clamp-2">
-                            {pickLens(item, language)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(item.sourceId, item.url, item.title, isInResearch ? "none" : "to_read");
-                        }}
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-                          isInResearch
-                            ? "bg-slate-900 text-white"
-                            : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                        }`}
+                  <li key={`${item.sourceId}-${item.url}`} className="flex items-start gap-3 py-3.5">
+                    <div className="min-w-0 max-w-3xl flex-1">
+                      <Link
+                        href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
+                        className="line-clamp-2 text-sm font-medium leading-snug text-slate-900 hover:underline underline-offset-4"
                       >
-                        <BookOpen className="h-3.5 w-3.5" aria-hidden />
-                        <span>{isInResearch ? T("tabs.item.added-read") : T("tabs.item.add-read")}</span>
-                      </button>
+                        {item.title}
+                      </Link>
+                      {lens && (
+                        <p className="mt-1 font-serif text-[14px] leading-snug text-[var(--brand)] line-clamp-2">{lens}</p>
+                      )}
+                      <div className="mt-1.5 text-xs text-slate-500"><SourceName name={item.departmentName} /></div>
                     </div>
-                  </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStatusChange(item.sourceId, item.url, item.title, isInResearch ? "none" : "to_read");
+                      }}
+                      aria-pressed={isInResearch}
+                      aria-label={isInResearch ? T("tabs.item.added-read") : T("tabs.item.add-read")}
+                      title={isInResearch ? T("tabs.item.added-read") : T("tabs.item.add-read")}
+                      className={`ml-auto mt-0.5 shrink-0 rounded-full p-1.5 transition ${
+                        isInResearch ? "bg-[var(--brand-tint)] text-[var(--brand)]" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      }`}
+                    >
+                      {isInResearch ? <BookmarkCheck className="h-4 w-4" aria-hidden /> : <BookmarkPlus className="h-4 w-4" aria-hidden />}
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
           {todayItems.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-100 text-center">
@@ -685,59 +632,45 @@ export function WorkspaceTabs({
               </Link>
             </div>
           ) : (
-            <div className="space-y-2">
+            <ul className="divide-y divide-slate-200">
               {starredItems.slice(0, 8).map((item) => {
-                const itemMatches = subsLoaded ? matchItem(item) : [];
                 const isInResearch = loaded && followupItems.some(
                   (f) => f.sourceId === item.sourceId && f.url === item.url
                 );
+                const lens = pickLens(item, language);
                 return (
-                  <div
-                    key={`${item.sourceId}-${item.url}`}
-                    className="group rounded-2xl border border-slate-100 bg-slate-50/40 p-4 transition hover:border-slate-200 hover:bg-white hover:shadow-sm"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 text-amber-500 text-lg">
-                        ★
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs text-slate-400">
-                            {item.departmentName}
-                          </span>
-                          {subsLoaded && itemMatches.length > 0 && (
-                            <SubscriptionBadge matches={itemMatches} compact />
-                          )}
-                        </div>
-                        <Link
-                          href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
-                          className="mt-1 block line-clamp-2 text-sm font-medium text-slate-900 hover:text-slate-700"
-                        >
-                          {item.title}
-                        </Link>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStatusChange(item.sourceId, item.url, item.title, isInResearch ? "none" : "to_read");
-                        }}
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-                          isInResearch
-                            ? "bg-slate-900 text-white"
-                            : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
-                        }`}
+                  <li key={`${item.sourceId}-${item.url}`} className="flex items-start gap-3 py-3.5">
+                    <div className="min-w-0 max-w-3xl flex-1">
+                      <Link
+                        href={`/items/${encodeURIComponent(item.sourceId)}?url=${encodeURIComponent(item.url)}`}
+                        className="line-clamp-2 text-sm font-medium leading-snug text-slate-900 hover:underline underline-offset-4"
                       >
-                        <BookOpen className="h-3.5 w-3.5" aria-hidden />
-                        <span>{isInResearch ? T("tabs.item.added-read") : T("tabs.item.add-read")}</span>
-                      </button>
+                        {item.title}
+                      </Link>
+                      {lens && (
+                        <p className="mt-1 font-serif text-[14px] leading-snug text-[var(--brand)] line-clamp-2">{lens}</p>
+                      )}
+                      <div className="mt-1.5 text-xs text-slate-500"><SourceName name={item.departmentName} /></div>
                     </div>
-                  </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStatusChange(item.sourceId, item.url, item.title, isInResearch ? "none" : "to_read");
+                      }}
+                      aria-pressed={isInResearch}
+                      aria-label={isInResearch ? T("tabs.item.added-read") : T("tabs.item.add-read")}
+                      title={isInResearch ? T("tabs.item.added-read") : T("tabs.item.add-read")}
+                      className={`ml-auto mt-0.5 shrink-0 rounded-full p-1.5 transition ${
+                        isInResearch ? "bg-[var(--brand-tint)] text-[var(--brand)]" : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      }`}
+                    >
+                      {isInResearch ? <BookmarkCheck className="h-4 w-4" aria-hidden /> : <BookmarkPlus className="h-4 w-4" aria-hidden />}
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
           {starredItems.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-100 text-center">

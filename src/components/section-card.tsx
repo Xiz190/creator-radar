@@ -1,5 +1,7 @@
 "use client";
 
+import { usePrefs } from "@/contexts/prefs-context";
+
 import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
@@ -28,6 +30,7 @@ export function SectionCard({
   forceCollapsed,
   children,
 }: SectionCardProps) {
+  const en = usePrefs().language === "en";
   const [collapsed, setCollapsed] = useState(false);
   const prevForceRef = useRef<boolean | undefined>(undefined);
 
@@ -73,7 +76,7 @@ export function SectionCard({
                 type="button"
                 onClick={toggle}
                 className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                aria-label={collapsed ? "展开" : "收起"}
+                aria-label={collapsed ? (en ? "Expand" : "展开") : (en ? "Collapse" : "收起")}
               >
                 <span className={`text-[10px] transition-transform ${collapsed ? "-rotate-90" : ""}`}>▾</span>
               </button>

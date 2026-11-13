@@ -33,13 +33,13 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "创作者雷达",
-  description: "Creator Radar — 给独立创作者的 AI 情报台：用创作者雷达，把 AI 工具与行业动态翻译成对创作的意义",
+  title: "Creator Radar",
+  description: "Creator Radar: an industry radar for independent music creators. It reads AI-tool and industry news and says what each item means for your own work.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "雷达",
+    title: "Radar",
   },
 };
 
@@ -54,7 +54,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="zh-CN"
+      lang="en"
       className={`${serif.variable} ${sans.variable} ${mono.variable} h-full antialiased`}
       suppressHydrationWarning
     >

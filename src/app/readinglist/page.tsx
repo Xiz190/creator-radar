@@ -1,5 +1,7 @@
 "use client";
 
+import { usePrefs } from "@/contexts/prefs-context";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
@@ -17,6 +19,8 @@ type ReadingItem = {
 };
 
 export default function ReadingListPage() {
+  const en = usePrefs().language === "en";
+  const L = (zh: string, enText: string) => (en ? enText : zh);
   const [keys, setKeys] = useState<string[]>([]);
   const [items, setItems] = useState<ReadingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,12 +89,12 @@ export default function ReadingListPage() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Link href="/inbox" className="hover:text-slate-800">收件箱</Link>
+              <Link href="/inbox" className="hover:text-slate-800">{L("动态资讯", "News Feed")}</Link>
               <span>/</span>
-              <span>稍后读</span>
+              <span>{L("稍后读", "Read later")}</span>
             </div>
-            <h1 className="mt-1 text-xl font-bold text-slate-900">稍后读清单</h1>
-            <p className="mt-1 text-sm text-slate-500">{items.length} 条待读内容 · 仅本地保存</p>
+            <h1 className="mt-1 text-xl font-bold text-slate-900">{L("稍后读清单", "Read later")}</h1>
+            <p className="mt-1 text-sm text-slate-500">{en ? `${items.length} saved · this browser only` : `${items.length} 条待读 · 只存在这台浏览器`}</p>
           </div>
           {items.length > 0 && (
             <button
@@ -98,7 +102,7 @@ export default function ReadingListPage() {
               onClick={clearAll}
               className="rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs text-rose-500 transition hover:bg-rose-50"
             >
-              清空全部
+              {L("清空全部", "Clear all")}
             </button>
           )}
         </div>
@@ -115,14 +119,14 @@ export default function ReadingListPage() {
         ) : items.length === 0 ? (
           <div className="mt-16 text-center">
             <ClipboardList className="mx-auto mb-3 h-10 w-10 text-slate-300" aria-hidden />
-            <p className="text-sm text-slate-500">清单为空</p>
-            <p className="mt-1 text-xs text-slate-400">在收件箱展开条目后点击「稍后读」添加</p>
+            <p className="text-sm text-slate-500">{L("清单是空的", "Nothing saved yet")}</p>
+            <p className="mt-1 text-xs text-slate-400">{L("在动态资讯里展开一条，点「稍后读」就会加进来。", "Open an item in the News Feed and click Later to add it.")}</p>
             <Link
               href="/inbox"
               className="mt-4 inline-block rounded-full px-4 py-2 text-sm font-medium text-white"
               style={{ backgroundColor: "var(--brand)" }}
             >
-              去收件箱
+              {L("去动态资讯", "Open the News Feed")}
             </Link>
           </div>
         ) : (
@@ -146,14 +150,14 @@ export default function ReadingListPage() {
                     {item.listPublishedAt && (
                       <span>· {new Date(item.listPublishedAt).toLocaleDateString("zh-CN")}</span>
                     )}
-                    {!item.title && <span className="text-slate-300">加载中…</span>}
+                    {!item.title && <span className="text-slate-300">{L("加载中…", "Loading…")}</span>}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => remove(item.key)}
                   className="shrink-0 rounded-full p-1 text-slate-300 transition hover:bg-slate-100 hover:text-slate-500"
-                  title="从清单移除"
+                  title={L("从清单移除", "Remove")}
                 >
                   ×
                 </button>

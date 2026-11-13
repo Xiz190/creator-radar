@@ -62,7 +62,7 @@ describe("作者专属接口", () => {
 
 describe("作者专属页面", () => {
   it("管理与个人设置页及其子页属于作者专属", () => {
-    for (const p of ["/monitor", "/monitor/sources", "/keywords", "/alerts", "/digest", "/settings/data", "/stats", "/readinglist"]) {
+    for (const p of ["/monitor", "/monitor/sources", "/keywords", "/digest", "/settings/data", "/stats", "/readinglist"]) {
       expect(isOwnerOnlyPage(p), p).toBe(true);
     }
   });

@@ -45,6 +45,7 @@ import {
   type CategoryCount,
   type GenreCount,
   GENRE_LIST,
+  genreLabel,
   extractDateKey,
   getShanghaiDateKeys,
   formatDateLabel,
@@ -57,6 +58,8 @@ import { generateShareCard, downloadBlob } from "@/lib/share-card";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { useDemoVisitor } from "@/hooks/use-demo-visitor";
 import { notifyDemoReadonly } from "@/lib/demo-readonly";
+import { SourceName } from "@/components/source-name";
+import { channelCount, channelNameFor } from "@/lib/source-names";
 
 const SCROLL_KEY = "inbox-scroll-y";
 
@@ -1933,13 +1936,13 @@ export default function InboxPage() {
                               />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="truncate text-sm font-medium text-slate-800">{node.departmentName}</span>
+                                  <span className="truncate text-sm font-medium text-slate-800"><SourceName name={node.departmentName} /></span>
                                   <span className="shrink-0 text-xs text-slate-500">
                                     {node.totalCount}
                                     {node.unread > 0 ? <span className="ml-1 text-slate-400">{t("inbox.side.unread-paren", { n: node.unread })}</span> : null}
                                   </span>
                                 </div>
-                                <div className="mt-0.5 text-xs text-slate-500">{t("inbox.side.channels", { n: node.channels.length })}</div>
+                                <div className="mt-0.5 text-xs text-slate-500">{channelCount(node.channels.length, language)}</div>
                               </div>
                             </label>
                           </div>
@@ -1957,7 +1960,7 @@ export default function InboxPage() {
                                         onChange={() => toggleChannel(node.departmentName, c.channelName)}
                                       />
                                       <span className="min-w-0 flex-1 text-slate-700">
-                                        <span className="truncate">{c.channelName}</span>
+                                        <span className="truncate">{channelNameFor(c.channelName, language)}</span>
                                       </span>
                                       <span className="shrink-0 text-slate-500">
                                         {c.count}
@@ -2093,7 +2096,7 @@ export default function InboxPage() {
                                 : "border-slate-200 text-slate-700 hover:bg-slate-50"
                             }`}
                           >
-                            {genre}
+                            {genreLabel(genre, language)}
                             <span className={`ml-1 ${on ? "text-slate-300" : "text-slate-400"}`}>{count}</span>
                           </button>
                         );
@@ -2379,7 +2382,7 @@ export default function InboxPage() {
                                         <SubscriptionBadge matches={followInfo.allMatches} compact />
                                       )}
                                       <span className="group inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">
-                                        {item.departmentName}
+                                        <SourceName name={item.departmentName} />
                                         {subscriptionsLoaded && !followInfo.isFollowed && (
                                           <button data-owner-only
                                             type="button"
@@ -2400,7 +2403,7 @@ export default function InboxPage() {
                                           </button>
                                         )}
                                       </span>
-                                      <span>{item.channelName}</span>
+                                      <span>{channelNameFor(item.channelName, language)}</span>
                                       <span>· {item.listPublishedAt}</span>
                                       {(() => {
                                         const today = new Date().toISOString().split("T")[0];
@@ -3076,8 +3079,8 @@ export default function InboxPage() {
                   <ImportanceBadge level={previewItem.importanceLevel} keywordScore={previewItem.keywordScore} showLegacyTag />
                   {!previewItem.isRead && <span className="rounded-full bg-sky-50 px-2 py-0.5 font-medium text-sky-700">{t("inbox.view.unread")}</span>}
                   {previewItem.isStarred && <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">{t("inbox.view.starred")}</span>}
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">{previewItem.departmentName}</span>
-                  <span className="text-slate-500">{previewItem.channelName}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-700"><SourceName name={previewItem.departmentName} /></span>
+                  <span className="text-slate-500">{channelNameFor(previewItem.channelName, language)}</span>
                   <span className="text-slate-400">· {previewItem.listPublishedAt}</span>
                 </div>
                 <h2 className="text-base font-semibold leading-snug text-slate-900">

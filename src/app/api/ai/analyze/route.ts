@@ -16,12 +16,13 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     if (body.type === "analyze-item") {
-      const { title, content, summary, matchedSignals } = body;
+      const { title, content, summary, matchedSignals, language } = body;
       const result = await analyzer.analyze({
         title,
         content,
         summary,
         matchedSignals,
+        language: language === "en" ? "en" : "zh",
       });
       return NextResponse.json({ ok: true, result });
     }

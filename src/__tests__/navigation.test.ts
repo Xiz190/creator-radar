@@ -144,8 +144,8 @@ describe("导航 - primaryNav（主导航配置）", () => {
 });
 
 describe("导航 - settingsMenu（设置菜单配置）", () => {
-  it("设置菜单共 15 个条目（3 组分隔 + 12 个菜单项）", () => {
-    expect(settingsMenu.length).toBe(15);
+  it("设置菜单共 14 个条目（3 组分隔 + 11 个菜单项；2026-11 删了不生效的提醒规则页）", () => {
+    expect(settingsMenu.length).toBe(14);
   });
 
   it("第 1 个条目是「数据洞察」分组分隔线", () => {
@@ -191,9 +191,9 @@ describe("导航 - settingsMenu（设置菜单配置）", () => {
     }
   });
 
-  it("「设置与帮助」分组有 9 个菜单项，含版本规划、手机伴侣版、方法说明", () => {
+  it("「设置与帮助」分组有 8 个菜单项，含版本规划、手机伴侣版、方法说明", () => {
     const groupItems = settingsMenu.slice(6);
-    expect(groupItems.length).toBe(9);
+    expect(groupItems.length).toBe(8);
     expect(groupItems.every((item) => !isMenuDivider(item))).toBe(true);
 
     const labels = groupItems.map((item) => ("label" in item ? item.label : ""));
@@ -309,13 +309,13 @@ describe("导航 - computeActiveNavLabel（激活导航标签计算）", () => {
 });
 
 describe("导航 - 信息架构验证", () => {
-  it("主导航 3 项 + 设置菜单 12 项 = 共 15 个功能入口", () => {
+  it("主导航 3 项 + 设置菜单 11 项 = 共 14 个功能入口", () => {
     const primaryCount = primaryNav.length;
     const settingsCount = settingsMenu.filter((item) => !isMenuDivider(item)).length;
-    expect(primaryCount + settingsCount).toBe(15);
+    expect(primaryCount + settingsCount).toBe(14);
   });
 
-  it("设置菜单分三组：数据洞察（2项）+ 管理后台（1项）+ 设置与帮助（9项）", () => {
+  it("设置菜单分三组：数据洞察（2项）+ 管理后台（1项）+ 设置与帮助（8项）", () => {
     const dividers = settingsMenu.filter((item) => isMenuDivider(item));
     expect(dividers.length).toBe(3);
 
@@ -337,7 +337,7 @@ describe("导航 - 信息架构验证", () => {
     const aboutItems = settingsMenu.slice(
       settingsMenu.findIndex((item) => isMenuDivider(item) && item.groupLabel === "设置与帮助") + 1,
     );
-    expect(aboutItems.length).toBe(9);
+    expect(aboutItems.length).toBe(8);
     const lastItem = aboutItems[aboutItems.length - 1];
     if (lastItem && "label" in lastItem) {
       expect(lastItem.label).toBe("方法说明");

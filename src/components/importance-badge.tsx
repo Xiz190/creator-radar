@@ -25,7 +25,7 @@ export function ImportanceBadge({
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 ${meta.className} ${className ?? ""}`}
-      title={meta.description}
+      title={language === "en" ? meta.descriptionEn : meta.description}
     >
       <span>{language === "en" ? meta.labelEn : meta.label}</span>
       {showLegacyTag && isLegacy ? (

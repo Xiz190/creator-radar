@@ -15,7 +15,7 @@ import {
 import { cachedFetch, clearFetchCache } from "@/lib/fetch-cache";
 import { usePrefs } from "@/contexts/prefs-context";
 import {
-  AlarmClock, Bell, Building2, ChartColumn, ClipboardList, House, Lightbulb, Mail, Mailbox, MapPin, MessageSquare, RadioTower, Rocket, Settings, SlidersVertical, Star, Target, TrendingUp, Zap, type LucideIcon,
+  AlarmClock, Bell, Building2, ChartColumn, ClipboardList, House, Lightbulb, Mail, Mailbox, MapPin, MessageSquare, RadioTower, Settings, SlidersVertical, Star, Target, TrendingUp, Zap, type LucideIcon,
 } from "lucide-react";
 
 type SubscriptionRecord = {
@@ -1237,11 +1237,8 @@ export default function SubscribePage() {
             </div>
 
             {/* 版本规划 */}
-            <div id="roadmap" className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/50 to-indigo-50/30 p-6">
+            <div id="roadmap" className="rounded-2xl border border-slate-200 bg-white p-6">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600">
-                  <Rocket className="h-5 w-5 text-white" aria-hidden />
-                </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-base font-semibold text-slate-900">{L("版本规划 (V2.0)", "Roadmap (v2.0)")}</h3>
                   <p className="mt-1 text-sm text-slate-500">

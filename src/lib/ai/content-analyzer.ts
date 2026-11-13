@@ -1,3 +1,4 @@
+import { CREATOR_SIGNAL_KEYS, creatorSignalLabel, detectCreatorSignals } from "@/lib/monitor/creator-signals";
 import { getDoubaoClient, DoubaoChatMessage } from "./doubao";
 import { createLogger } from "@/lib/logger";
 
@@ -22,6 +23,8 @@ export interface AnalysisInput {
   content: string;
   summary?: string | null;
   matchedSignals?: string[];
+  /** 输出语言；默认中文 */
+  language?: "zh" | "en";
 }
 
 /** 基于分类名 → 对应的"高确定性"推断模板 */
@@ -53,7 +56,7 @@ function getLlmConfig(): LlmConfig | null {
   return { apiKey, baseUrl, model, temperature, maxTokens };
 }
 
-async function callLlm(system: string, user: string): Promise<string> {
+export async function callLlm(system: string, user: string, opts: { maxTokens?: number; timeoutMs?: number } = {}): Promise<string> {
   const cfg = getLlmConfig();
   if (!cfg) throw new Error("LLM 未配置（缺少 LLM_API_KEY）");
   const url = cfg.baseUrl.replace(/\/$/, "") + "/chat/completions";
@@ -70,9 +73,9 @@ async function callLlm(system: string, user: string): Promise<string> {
         { role: "user", content: user },
       ],
       temperature: cfg.temperature,
-      max_tokens: cfg.maxTokens,
+      max_tokens: opts.maxTokens ?? cfg.maxTokens,
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(opts.timeoutMs ?? 30000),
   });
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
@@ -185,7 +188,7 @@ ${contentText}
         if (this.client) {
           try {
             const messages: DoubaoChatMessage[] = [
-              this.buildSystemPrompt(),
+              { role: "system", content: this.systemPromptFor(input) },
               { role: "user", content: this.buildUserPrompt(input) },
             ];
             const response = await this.client.chatCompletion(messages, "Ernie-4.0");
@@ -198,7 +201,7 @@ ${contentText}
 
         if (getLlmConfig()) {
           try {
-            const system = this.buildSystemPrompt().content;
+            const system = this.systemPromptFor(input);
             const user = this.buildUserPrompt(input);
             const response = await callLlm(system, user);
             const result = this.parseJsonResponse(response);
@@ -260,8 +263,39 @@ ${contentText}
     };
   }
 
+  private systemPromptFor(input: AnalysisInput): string {
+    const base = this.buildSystemPrompt().content;
+    return input.language === "en"
+      ? base + "\n\nWrite every text field (forecastHigh, forecastMidHigh, forecastMid, forecastLow, reasoning, keySignals) in plain English."
+      : base;
+  }
+
+  /** 英文界面的规则版：只依据五类创作者信号说"原文提到了什么"，不做更多推断 */
+  private getRuleBasedResultEn(input: AnalysisInput): ContentAnalysisResult {
+    const s = detectCreatorSignals({ title: input.title, summary: input.summary, content: input.content });
+    const stated: string[] = [];
+    if (s.newFeature) stated.push("A new feature or version is out. You can try it on your next piece.");
+    if (s.opportunity) stated.push("There is a contest, grant or open call. Check whether you qualify.");
+    if (s.deadline) stated.push("A deadline is mentioned. Put it in your calendar if you plan to apply.");
+    const likely: string[] = [];
+    if (s.pricing) likely.push("Pricing or credits are changing. Check whether your current plan is affected.");
+    if (s.copyright) likely.push("Copyright or licensing is involved. Watch how it affects AI-made work you release.");
+    const found = CREATOR_SIGNAL_KEYS.filter((k) => s[k]).map((k) => creatorSignalLabel(k, "en").toLowerCase());
+    return {
+      forecastHigh: stated.join(" ") || "The item is published. Check whether it touches a tool or plan you rely on.",
+      forecastMidHigh: likely.join(" ") || "A follow-up announcement is likely. Following this source keeps you updated.",
+      forecastMid: "How much this matters depends on details the source has not given yet.",
+      forecastLow: "If the trend continues it may change how independent musicians make or release work, but the timing is unclear.",
+      reasoning: (found.length ? `Detected from the text: ${found.join(", ")}. ` : "No creator signal detected in the text. ") + "Generated from keyword rules; read the original before acting.",
+      confidence: found.length >= 2 ? 65 : found.length === 1 ? 55 : 40,
+      keySignals: found,
+      source: "rule",
+    };
+  }
+
   /** 纯关键词规则的降级结果 — 依据信号分类给一份可编辑的起始建议 */
   private getRuleBasedResult(input: AnalysisInput): ContentAnalysisResult {
+    if (input.language === "en") return this.getRuleBasedResultEn(input);
     const signals = input.matchedSignals || [];
     const title = input.title || "";
 
@@ -270,11 +304,11 @@ ${contentText}
     const highLines = matchedCategories.slice(0, 2).map((s) => HIGH_CERTAINTY_RULES[s]);
 
     // 文本级关键词信号检测
-    const fullText = ((input.summary || "") + " " + (input.content || "")).toLowerCase();
-    const hasDeadline = /截止|deadline|closing|last day|倒计时/.test(fullText) || signals.some((s) => /截止|deadline/.test(s));
-    const hasOpportunity = /比赛|征集|招募|投稿|驻留|资助|奖金|competition|grant|residency/.test(fullText) || signals.some((s) => /比赛|机会|资助/.test(s));
-    const hasPricing = /定价|价格|涨价|降价|免费额度|pricing|subscription/.test(fullText) || signals.some((s) => /定价|价格/.test(s));
-    const hasNewFeature = /新功能|版本|更新|发布|launch|release|update/.test(fullText) || signals.some((s) => /AI工具|更新/.test(s));
+    const cs = detectCreatorSignals({ title, summary: input.summary, content: input.content });
+    const hasDeadline = cs.deadline || signals.some((s) => /截止|deadline/.test(s));
+    const hasOpportunity = cs.opportunity || signals.some((s) => /比赛|机会|资助/.test(s));
+    const hasPricing = cs.pricing;
+    const hasNewFeature = cs.newFeature;
     const hasTimeline = /(\d{1,2}\s*月|年内|近期|\d{4}[\s年])/.test(input.summary || input.content || "");
 
     const forecastHigh = highLines.length > 0

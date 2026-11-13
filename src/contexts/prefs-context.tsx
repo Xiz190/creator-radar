@@ -19,6 +19,8 @@ export interface PrefsState {
   reducedMotion: boolean;
   darkMode: boolean | null; // null = follow system
   language: Language;
+  /** 用户是否主动选过语言；没选过的一律用默认英文（评委/访客首次进站看到英文） */
+  languageChosen?: boolean;
   accentColor: AccentColor;
   focusMode: boolean;
 }
@@ -38,7 +40,7 @@ const DEFAULTS: PrefsState = {
   highContrast: false,
   reducedMotion: false,
   darkMode: null,
-  language: "zh",
+  language: "en",
   accentColor: "violet",
   focusMode: false,
 };
@@ -49,7 +51,10 @@ function load(): PrefsState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const stored = { ...DEFAULTS, ...JSON.parse(raw) } as PrefsState;
+    // 旧版本存偏好时会顺带存下当时的默认 "zh"；只有用户亲手切过语言才保留
+    if (!stored.languageChosen) stored.language = DEFAULTS.language;
+    return stored;
   } catch {
     return DEFAULTS;
   }
@@ -152,7 +157,7 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     setHighContrast: (v) => update({ highContrast: v }),
     setReducedMotion: (v) => update({ reducedMotion: v }),
     setDarkMode: (v) => update({ darkMode: v }),
-    setLanguage: (v) => update({ language: v }),
+    setLanguage: (v) => update({ language: v, languageChosen: true }),
     setAccentColor: (v) => update({ accentColor: v }),
     setFocusMode: (v) => update({ focusMode: v }),
   };

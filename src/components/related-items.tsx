@@ -7,6 +7,7 @@ import { ImportanceBadge } from "@/components/importance-badge";
 import {
   Link, Paperclip, Tag,
 } from "lucide-react";
+import { SourceName } from "@/components/source-name";
 
 export type RelatedContentItem = {
   sourceId: string;
@@ -159,7 +160,7 @@ export function RelatedItems({ data }: RelatedItemsProps) {
                       {item.title}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                      <span>{item.departmentName}</span>
+                      <span><SourceName name={item.departmentName} /></span>
                       <span>·</span>
                       <span>{item.listPublishedAt}</span>
                     </div>

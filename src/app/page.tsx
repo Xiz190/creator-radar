@@ -12,6 +12,7 @@ import { usePrefs } from "@/contexts/prefs-context";
 import { pickLens } from "@/lib/localized-fields";
 import { useT, type TranslationKey } from "@/lib/i18n";
 import { RadioTower, ClipboardList, ChevronRight, ArrowUpRight } from "lucide-react";
+import { SourceName } from "@/components/source-name";
 
 function getGreeting(): { key: TranslationKey } {
   const now = new Date();
@@ -210,49 +211,12 @@ export default function Home() {
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <SiteHeader />
         <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-          <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl">
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[var(--brand)]/15 blur-3xl" />
-            </div>
-            <div className="relative px-6 py-8 sm:px-8 sm:py-10">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300">
-                    <span className="mr-1 h-1.5 w-1.5 rounded-full bg-slate-500 animate-pulse" />
-                    <span className="animate-pulse">{todayStr}</span>
-                  </span>
-                </div>
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand)] opacity-70">
-                    <RadioTower className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold tracking-wide text-white/90">{T("site.title")}</div>
-                    <div className="text-[11px] text-slate-500">Radar · Creator Radar</div>
-                  </div>
-                </div>
-                <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-                  <span className="animate-pulse">{T(greeting.key)}</span>
-                  <span className="text-slate-500">{T("common.comma")}</span>
-                  <span className="text-slate-300 animate-pulse">
-                    {T("home.loading.title")}
-                  </span>
-                </h1>
-                <p className="mt-2 text-sm text-slate-500 animate-pulse">
-                  {T("home.loading.sub")}
-                </p>
-              </div>
-
-              <div className="mt-7 grid grid-cols-3 gap-3">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-4 backdrop-blur-sm">
-                    <div className="h-3 w-16 bg-slate-700/50 rounded animate-pulse" />
-                    <div className="mt-1.5 h-8 w-12 bg-slate-700/50 rounded animate-pulse" />
-                    <div className="mt-0.5 h-3 w-20 bg-slate-700/30 rounded animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
+          <section className="border-b border-slate-200 pb-5 sm:pb-6">
+            <time className="text-xs text-slate-500">{todayStr}</time>
+            <h1 className="mt-2 text-2xl leading-tight text-slate-900 sm:text-3xl">
+              {T(greeting.key)}{T("common.comma")}<span className="text-slate-500">{T("home.loading.title")}</span>
+            </h1>
+            <div className="mt-3 h-4 w-64 max-w-full rounded bg-slate-100 animate-pulse" />
           </section>
 
           <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -307,68 +271,30 @@ export default function Home() {
       )}
 
       <div className="mx-auto w-full max-w-6xl px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl sm:rounded-3xl">
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-[var(--brand)]/15 blur-3xl" />
-          </div>
-          <div className="relative px-5 py-6 sm:px-8 sm:py-10">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-white/75">
-                  <span className="mr-1 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  {todayStr}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--brand)]">
-                  <RadioTower className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold tracking-wide text-white/90">{T("site.title")}</div>
-                  <div className="text-[11px] text-white/55">Radar · Creator Radar</div>
-                </div>
-              </div>
-              <h1 className="mt-4 text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
-                {T(greeting.key)}
-                <span className="text-white/70">{T("common.comma")}</span>
-                <span className="text-white">
-                  {T("home.today-updates", { n: newCountLabel })}
-                </span>
-              </h1>
-              <p className="mt-2 text-xs text-white/75 sm:text-sm">
-                {T("home.priority-note", { n: highPriorityCount })}
-              </p>
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-7 sm:gap-3">
-              <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.07] sm:rounded-2xl sm:px-4 sm:py-4">
-                <div className="text-[10px] uppercase tracking-wider text-white/65 sm:text-[11px]">{T("home.stat.new-label")}</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-white sm:mt-1.5 sm:text-3xl">{newCountLabel}</div>
-                <div className="mt-0.5 text-[10px] text-white/60 sm:text-[11px]">{T("home.stat.new-unit")}</div>
-              </div>
-              <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.07] sm:rounded-2xl sm:px-4 sm:py-4">
-                <div className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[var(--brand)] opacity-70 transition group-hover:opacity-100 sm:right-3 sm:top-3" />
-                <div className="text-[10px] uppercase tracking-wider text-white/65 sm:text-[11px]">{T("home.stat.priority-label")}</div>
-                <div className="mt-1 text-2xl font-bold tabular-nums text-white sm:mt-1.5 sm:text-3xl">{highPriorityCount}</div>
-                <div className="mt-0.5 text-[10px] text-white/60 sm:text-[11px]">{T("home.stat.priority-unit")}</div>
-              </div>
-              <WorkspaceFollowupBadge />
-            </div>
-          </div>
+        {/* 报头：直接落在纸底上，不用深色板/光晕/毛玻璃数字块——数字已在标题句里，不再重复成三块 */}
+        <section className="border-b border-slate-200 pb-5 sm:pb-6">
+          <time className="text-xs text-slate-500">{todayStr}</time>
+          <h1 className="mt-2 text-2xl leading-tight text-slate-900 sm:text-3xl lg:text-[2.125rem]">
+            {T(greeting.key)}{T("common.comma")}{T("home.today-updates", { n: newCountLabel })}
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            {T("home.priority-note", { n: highPriorityCount })}
+            <span className="mx-1.5 text-slate-300" aria-hidden>·</span>
+            <WorkspaceFollowupBadge />
+          </p>
         </section>
 
         <section className="mt-6">
           <WorkspaceNotificationCard />
         </section>
 
-        {/* 主内容两栏：左=情报流+工作台，右=快捷入口+最近浏览 */}
+        {/* 第一行：左=今日必读，右=两个快捷入口（并排）+ 速览图表；两边高度大致对齐 */}
         <div className="mt-6 grid gap-5 lg:grid-cols-3">
-          {/* 左主栏 */}
-          <div className="space-y-5 lg:col-span-2">
+          <div className="min-w-0 lg:col-span-2 lg:flex lg:flex-col">
 
         {/* 今日必读：与伴侣版同一语言——衬线赭石的创作者视角打头，来源和标题退为附注 */}
         {mustReadItems.length > 0 && (
-          <section className="mt-4 rounded-2xl border border-slate-200 bg-white">
+          <section className="rounded-2xl border border-slate-200 bg-white lg:flex-1">
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3">
               <div className="flex items-baseline gap-2">
                 <h2 className="text-base font-semibold text-slate-900">{T("home.mustread.title")}</h2>
@@ -411,7 +337,7 @@ export default function Home() {
                         {isCore(item.importanceLevel) && (
                           <span className="shrink-0 font-medium text-red-700">{T("importance.core")}</span>
                         )}
-                        <span className="shrink-0 font-medium text-slate-700">{item.departmentName}</span>
+                        <span className="shrink-0 font-medium text-slate-700"><SourceName name={item.departmentName} /></span>
                         {lens && (
                           <>
                             <span aria-hidden>·</span>
@@ -427,14 +353,10 @@ export default function Home() {
           </section>
         )}
 
-        <section className="mt-8">
-          <WorkspaceTabs todayItems={todayItems} starredItems={starredItems} />
-        </section>
           </div>
 
-          {/* 右侧栏：快捷入口（竖排）+ 最近浏览 */}
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { label: T("home.quick.unread"), href: "/inbox?onlyUnread=1&sort=first_seen_at" },
                 { label: T("home.quick.priority"), href: "/inbox?importanceLevels=%E6%A0%B8%E5%BF%83%E5%85%B3%E6%B3%A8,%E9%87%8D%E7%82%B9%E5%86%85%E5%AE%B9" },
@@ -455,6 +377,11 @@ export default function Home() {
             <HomeInsightCarousel />
           </div>
         </div>
+
+        {/* 第二行：关注列表占满整行，不再挤在左栏里把右边拉出一大片空白 */}
+        <section className="mt-5">
+          <WorkspaceTabs todayItems={todayItems} starredItems={starredItems} excludeUrls={mustReadItems.map((i) => i.url)} />
+        </section>
 
         {recentlyViewed.length > 0 && (
           <section className="mt-8">
@@ -478,7 +405,7 @@ export default function Home() {
                     <div className="min-w-0 flex-1">
                       <div className="line-clamp-1 text-xs font-medium text-slate-800 group-hover:text-sky-700">{item.title}</div>
                       <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
-                        <span>{item.departmentName}</span>
+                        <span><SourceName name={item.departmentName} /></span>
                         {item.listPublishedAt && <span>· {item.listPublishedAt.slice(0, 10)}</span>}
                       </div>
                     </div>

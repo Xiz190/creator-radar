@@ -38,6 +38,7 @@ export function HighlightedParagraph({
   text: string;
   matches: Array<{ keyword: string; category: string }>;
 }) {
+  const { language } = usePrefs();
   const sortedMatches = useMemo(() => {
     const seen = new Set<string>();
     const unique = matches.filter((m) => {
@@ -84,7 +85,7 @@ export function HighlightedParagraph({
         if (seg.kind === "plain") return <span key={i}>{seg.text}</span>;
         const style = getCategoryStyle(seg.category ?? "");
         return (
-          <mark key={i} className={style.highlight} title={style.displayLabel}>
+          <mark key={i} className={style.highlight} title={categoryDisplayLabel(seg.category ?? "", language)}>
             {seg.text}
           </mark>
         );
