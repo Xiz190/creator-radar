@@ -10,20 +10,15 @@ import { FirstTimeGuideModal } from "@/components/local-data-notice";
 import { HomeInsightCarousel } from "@/components/home-insight-carousel";
 import { usePrefs } from "@/contexts/prefs-context";
 import { pickLens } from "@/lib/localized-fields";
+import { pickDistinctStories } from "@/lib/same-story";
 import { useT, type TranslationKey } from "@/lib/i18n";
 import { RadioTower, ClipboardList, ChevronRight, ArrowUpRight } from "lucide-react";
 import { SourceName } from "@/components/source-name";
 
+// 问候语和日期用访客的当地时间（2026-11 前写死北京时间：在美国晚上看会显示 Good morning，
+// 和伴侣版 /m 的日期也对不上）。只在数据加载完后渲染，那时已经在浏览器里，不会和服务端不一致。
 function getGreeting(): { key: TranslationKey } {
-  const now = new Date();
-  const hour = new Intl.DateTimeFormat("zh-CN", {
-    timeZone: "Asia/Shanghai",
-    hour: "numeric",
-    hour12: false,
-  })
-    .format(now)
-    .replace(/[^0-9]/g, "");
-  const h = parseInt(hour, 10);
+  const h = new Date().getHours();
   if (h < 6) return { key: "greeting.latenight" };
   if (h < 9) return { key: "greeting.earlymorning" };
   if (h < 12) return { key: "greeting.morning" };
@@ -36,7 +31,6 @@ function getGreeting(): { key: TranslationKey } {
 function formatDate(date: Date, lang: "zh" | "en"): string {
   if (lang === "en") {
     return date.toLocaleDateString("en-US", {
-      timeZone: "Asia/Shanghai",
       weekday: "short",
       month: "short",
       day: "numeric",
@@ -44,7 +38,6 @@ function formatDate(date: Date, lang: "zh" | "en"): string {
     });
   }
   const parts = new Intl.DateTimeFormat("zh-CN", {
-    timeZone: "Asia/Shanghai",
     year: "numeric",
     month: "numeric",
     day: "numeric",
@@ -121,6 +114,8 @@ export default function Home() {
   const { language } = usePrefs();
   const T = useT(language);
 
+  // 渲染里不能直接调 Date.now()（每次结果不同）；页面打开时取一次就够
+  const [nowMs] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [dbAvailable, setDbAvailable] = useState(false);
   const [todayItems, setTodayItems] = useState<FocusItem[]>([]);
@@ -164,7 +159,7 @@ export default function Home() {
   }, []);
 
   // 原先直接用 todayItems.length，而那个请求是 limit=40，所以「今天 40 条」永远是 40
-  const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const dayAgo = nowMs - 24 * 60 * 60 * 1000;
   const last24h = recentItems.filter((i) => i.firstSeenAt && new Date(i.firstSeenAt).getTime() >= dayAgo);
   const todayNewCount = last24h.length;
   const highPriorityCount = last24h.filter((i) => isPriority(i.importanceLevel)).length;
@@ -176,13 +171,15 @@ export default function Home() {
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("inbox_recent_items") ?? "[]") as typeof recentlyViewed;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
       setRecentlyViewed(stored.slice(0, 5));
     } catch {}
   }, []);
 
   const highItems = todayItems.filter((i) => isPriority(i.importanceLevel));
   // 真实数据的重要性分级可能还没跑，高优先级不足 3 条时用最新动态兜底，保证门面不空
-  const mustReadItems = (highItems.length >= 3 ? highItems : todayItems).slice(0, 3);
+  // 同一件事被两个来源各报一次时只留一条（如 Suno v6 的两篇）
+  const mustReadItems = pickDistinctStories(highItems.length >= 3 ? highItems : todayItems, 3);
 
   function generateBriefText(): string {
     const dateStr = new Date().toLocaleDateString(language === "en" ? "en-US" : "zh-CN", { year: "numeric", month: "long", day: "numeric" });
@@ -212,10 +209,9 @@ export default function Home() {
         <SiteHeader />
         <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
           <section className="border-b border-slate-200 pb-5 sm:pb-6">
-            <time className="text-xs text-slate-500">{todayStr}</time>
-            <h1 className="mt-2 text-2xl leading-tight text-slate-900 sm:text-3xl">
-              {T(greeting.key)}{T("common.comma")}<span className="text-slate-500">{T("home.loading.title")}</span>
-            </h1>
+            {/* 加载态会被服务端渲染：这里不放日期和问候语（服务端是 UTC，访客是当地时间，放了会水合不一致） */}
+            <div className="h-3 w-28 rounded bg-slate-100 animate-pulse" />
+            <h1 className="mt-2 text-2xl leading-tight text-slate-500 sm:text-3xl">{T("home.loading.title")}</h1>
             <div className="mt-3 h-4 w-64 max-w-full rounded bg-slate-100 animate-pulse" />
           </section>
 

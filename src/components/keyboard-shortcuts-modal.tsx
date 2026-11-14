@@ -31,7 +31,7 @@ const SHORTCUTS = [
     { key: "密度切换", keyEn: "Density", label: "紧凑 / 标准 / 宽松三档列表间距", labelEn: "Compact, standard or relaxed spacing" },
     { key: "随机发现", keyEn: "Shuffle", label: "随机展开一条未读内容", labelEn: "Open a random unread item" },
     { key: "▲ 收起全部", keyEn: "▲ Collapse all", label: "收起当前所有已展开条目", labelEn: "Collapse every open item" },
-    { key: "批量选择", keyEn: "Select", label: "多选后可批量稍后读、置顶、收藏、标记", labelEn: "Select several, then save, pin, star or mark them together" },
+    { key: "批量选择", keyEn: "Select", label: "多选后可批量标为已读、收藏、加入待跟进", labelEn: "Select several, then mark read, star or add them to follow-ups" },
   ]},
   { group: "命令面板", groupEn: "Command palette", rows: [
     { key: "↑ / ↓", keyEn: "↑ / ↓", label: "上下选择", labelEn: "Move up / down" },

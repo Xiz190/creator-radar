@@ -84,14 +84,17 @@ export function DonutChart({
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const total = Math.max(1, segments.reduce((s, x) => s + x.value, 0));
-  let acc = 0;
+  // 每段的起点 = 前面各段长度之和（先算好，不在渲染里改外部变量）
+  const lens = segments.map((s) => (s.value / total) * c);
+  const starts = lens.map((_, i) => lens.slice(0, i).reduce((a, b) => a + b, 0));
   return (
     <div className="flex items-center gap-4">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--muted)" strokeWidth={stroke} />
-          {segments.map((s) => {
-            const len = (s.value / total) * c;
+          {segments.map((s, i) => {
+            const len = lens[i];
+            const acc = starts[i];
             const el = (
               <circle
                 key={s.label}
@@ -105,7 +108,6 @@ export function DonutChart({
                 strokeDashoffset={-acc}
               />
             );
-            acc += len;
             return el;
           })}
         </g>

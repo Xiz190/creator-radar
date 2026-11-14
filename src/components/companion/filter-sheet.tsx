@@ -39,13 +39,15 @@ export function FilterSheet({
   const [draft, setDraft] = useState<FeedFilters>(filters);
   const [count, setCount] = useState<number | null>(null);
 
-  // 每次打开都以当前生效的筛选为草稿起点（取消后不留残影）
-  useEffect(() => {
+  // 每次打开都以当前生效的筛选为草稿起点（取消后不留残影）；渲染中对比上一次的 open，不放进 effect
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setDraft(filters);
       setCount(null);
     }
-  }, [open, filters]);
+  }
 
   // “Show N results” 里的 N：用 limit=1 问一次总数，只为拿 totalCount。
   useEffect(() => {

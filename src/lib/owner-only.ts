@@ -9,7 +9,6 @@ export const OWNER_ONLY_PAGES = [
   "/digest",       // 日报预览 / 发送
   "/settings",     // 数据备份与恢复
   "/stats",        // 个人统计
-  "/readinglist",  // 稍后读清单
 ] as const;
 
 /**
@@ -26,7 +25,6 @@ export const OWNER_ONLY_API = [
   "/api/monitor/items/debug-priority",
   "/api/monitor/runs",
   "/api/monitor/auto-status",
-  "/api/monitor/daily-summary",
   "/api/monitor/handoff",
 ] as const;
 

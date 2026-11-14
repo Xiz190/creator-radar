@@ -7,7 +7,7 @@ import { usePrefs } from "@/contexts/prefs-context";
 import { useScrollLock } from "@/hooks/use-scroll-lock";
 import {
   AlarmClock, Bell, ChartColumn, CircleCheck, ClipboardList, Clock, Flame,
-  House, Inbox, Languages, Mail, Mailbox, Moon, Pin, RadioTower, Search, Settings,
+  House, Inbox, Languages, Mail, Mailbox, Moon, RadioTower, Search, Settings,
   Star, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { useDemoVisitor } from "@/hooks/use-demo-visitor";
@@ -59,6 +59,7 @@ function useRecentItems(onClose: () => void): CmdItem[] {
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("inbox_recent_items") ?? "[]") as RecentEntry[];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
       setRecent(stored.slice(0, 5));
     } catch {}
   }, []);
@@ -92,7 +93,6 @@ function useCommandItems(onClose: () => void): CmdItem[] {
   return [
     // 导航
     { id: "search",    type: "nav",    icon: Search, label: L("全局搜索", "Search"),     desc: L("跨收件箱与信号雷达搜索", "Search the feed and Signal Radar"), href: "/search", action: () => go("/search"),   keywords: "search 搜索 全局 查找" },
-    { id: "readlist",  type: "nav",    icon: Pin, label: L("稍后读清单", "Reading list"),   desc: L("查看标记的待读条目", "Items you saved for later"),     href: "/readinglist", action: () => go("/readinglist"), keywords: "reading list 稍后读 书签" },
     { id: "digest",    type: "nav",    icon: Mail, label: L("今日日报预览", "Daily digest preview"),  desc: L("生成 HTML 邮件摘要", "The HTML email digest"),     href: "/digest", action: () => go("/digest"),     keywords: "digest 日报 邮件 email" },
     { id: "stats",     type: "nav",    icon: TrendingUp, label: L("个人统计", "My stats"),     desc: L("阅读率、关键词热度等", "Read rate, keyword activity and more"),   href: "/stats", action: () => go("/stats"),      keywords: "stats 统计 阅读率 个人" },
     { id: "home",      type: "nav",    icon: House, label: L("我的工作台", "Workspace"),   desc: L("回到首页总览", "Back to the home page"),          href: "/", action: () => go("/"),         keywords: "home workspace 工作台" },
@@ -197,17 +197,18 @@ export function CommandPalette({ open, onClose }: Props) {
   // flat ordered list for keyboard nav (search-all first, then recent, nav, actions)
   const orderedFiltered = [...searchAll, ...visibleRecent, ...navItems, ...actionItems];
 
-  useEffect(() => {
+  // 每次打开都从空白开始：在渲染中对比上一次的 open（React 推荐的「属性变化时调整状态」写法），不放进 effect
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQuery("");
       setActiveIdx(0);
-      requestAnimationFrame(() => inputRef.current?.focus());
     }
-  }, [open]);
-
+  }
   useEffect(() => {
-    setActiveIdx(0);
-  }, [query]);
+    if (open) requestAnimationFrame(() => inputRef.current?.focus());
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -275,7 +276,7 @@ export function CommandPalette({ open, onClose }: Props) {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setActiveIdx(0); }}
             placeholder={en ? "Jump to a page or run an action…" : "跳转到页面、快速操作…"}
             className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
           />

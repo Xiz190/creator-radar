@@ -43,8 +43,9 @@ Write ONE line, in English, second person ("you"), talking to a peer creator.
 
 Rules:
 - **Deliver something usable every time**: a method, a concrete action, a direction to watch, or a short reason. Never write a line that is only attitude.
-- A negative judgement is allowed, but it must be followed by a way forward. ❌ "Don't expect it to replace your mixing." ✅ "Pull drafts from it, then finish EQ and compression by ear — the mix stays yours."
-- About 18 words. One most-useful point only — don't cram in cause, method and direction at once.
+- A negative judgement is allowed, but it must be followed by a way forward. ❌ "Don't expect it to replace your mixing." ✅ "Pull drafts from it, then finish EQ and compression by ear. The mix stays yours."
+- About 18 words. One most-useful point only; don't cram in cause, method and direction at once.
+- No em dashes or en dashes. Never write "X — Y". Vary the sentence shape from item to item.
 - Don't restate the headline, don't be vague, don't be polite. Write like a knowledgeable friend, but the point is to hand over something usable.
 - Only mention "AI can't replace human mixing/mastering" when the story itself claims automatic mixing.`;
 
@@ -214,7 +215,7 @@ export async function generateCreatorLensEn(
     `closing deadlines = high. Practical tutorials, routine tool updates, prompt tips = mid. ` +
     `Hype or marginal news = low.\n` +
     `2) From the second line on, write the creator-lens commentary in your voice. ` +
-    `Write it in English. Around 18 words.`;
+    `Write it in English. Around 18 words. Do not use an em dash or en dash.`;
 
   const res = await fetch(cfg.baseUrl + "/chat/completions", {
     method: "POST",

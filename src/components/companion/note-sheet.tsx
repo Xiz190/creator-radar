@@ -32,10 +32,12 @@ export function NoteSheet({
   const t = useT("en");
   const [draft, setDraft] = useState(initialNote);
 
-  // 每次打开都以当前备注为草稿起点（取消后不留残影）
-  useEffect(() => {
+  // 每次打开都以当前备注为草稿起点（取消后不留残影）；渲染中对比上一次的 open，不放进 effect
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) setDraft(initialNote);
-  }, [open, initialNote]);
+  }
 
   if (!open) return null;
 

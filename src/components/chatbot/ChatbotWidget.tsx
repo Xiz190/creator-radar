@@ -484,12 +484,14 @@ export function ChatbotWidget() {
       {/* 浮动按钮（右下角） */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`hide-when-zoomed fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-full bg-[var(--brand)] px-4 py-2.5 text-sm font-medium text-white shadow-lg transition hover:bg-[var(--brand-700)] sm:bottom-6 ${
+        aria-label={T("chat.name")}
+        className={`hide-when-zoomed fixed bottom-20 right-4 z-50 flex items-center gap-2 rounded-full bg-[var(--brand)] p-3 text-sm font-medium text-white shadow-lg transition hover:bg-[var(--brand-700)] sm:bottom-6 sm:right-6 sm:px-4 sm:py-2.5 ${
           isOpen ? "opacity-0 pointer-events-none" : ""
         }`}
       >
-        <MessageCircle className="h-4 w-4" />
-        <span>{T("chat.name")}</span>
+        <MessageCircle className="h-4 w-4" aria-hidden />
+        {/* 手机上只留图标：整颗胶囊会压住条目的来源行 */}
+        <span className="hidden sm:inline">{T("chat.name")}</span>
       </button>
 
       {/* 底部占位：防止页面内容被浮动按钮遮挡 */}

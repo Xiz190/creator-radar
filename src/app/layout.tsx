@@ -9,6 +9,7 @@ import { NavigationProgress } from "@/components/navigation-progress";
 import { HandoffListener } from "@/components/handoff-listener";
 import { DemoModeGate } from "@/components/demo-mode-gate";
 import { CompanionHint } from "@/components/companion-hint";
+import { LegacyDataMigrator } from "@/components/legacy-data-migrator";
 import { ViewportZoomWatcher } from "@/components/viewport-zoom-watcher";
 
 // 编辑台字体系统：衬线标题(Newsreader) + 无衬线正文(IBM Plex Sans) + 等宽数据(IBM Plex Mono)
@@ -69,6 +70,7 @@ export default function RootLayout({
           <ChatbotWidget />
           <MobileBottomNav />
           <ViewportZoomWatcher />
+          <LegacyDataMigrator />
           {/* 手机端推过来的条目在这里弹出来。组件自己会在 /m 下返回 null */}
           <HandoffListener />
           <ServiceWorkerRegistration />

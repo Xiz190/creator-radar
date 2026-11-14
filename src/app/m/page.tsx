@@ -25,6 +25,7 @@ export default function CompanionTodayPage() {
   // 与下面的 recentCount 用同一个模式：服务端渲染空白，客户端挂载后填。
   const [dateLabel, setDateLabel] = useState("");
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     setDateLabel(formatCompanionDate(new Date()));
   }, []);
 
@@ -33,6 +34,7 @@ export default function CompanionTodayPage() {
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem("inbox_recent_items") ?? "[]") as unknown;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
       setRecentCount(Array.isArray(stored) ? stored.length : 0);
     } catch {
       setRecentCount(0);

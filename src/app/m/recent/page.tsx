@@ -29,6 +29,7 @@ export default function CompanionRecentPage() {
     try {
       const stored = JSON.parse(localStorage.getItem("inbox_recent_items") ?? "[]") as RecentEntry[];
       // 写入口（桌面 inbox）已按 newest-first 插入，这里原样呈现即为"最新在前"。
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
       setItems(Array.isArray(stored) ? stored : []);
     } catch {
       setItems([]);

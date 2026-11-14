@@ -94,6 +94,7 @@ export function AppTour({ open, onClose }: Props) {
         (el as HTMLElement).style.outline = "3px solid var(--brand)";
         (el as HTMLElement).style.outlineOffset = "3px";
         el.scrollIntoView({ block: "center", behavior: "smooth" });
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- 测量 DOM 位置只能在挂载后做
         setHighlightRect(el.getBoundingClientRect());
         prevHighlightEl.current = el;
       } else {
@@ -125,8 +126,12 @@ export function AppTour({ open, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, step, onClose]);
 
-  // Reset on open
-  useEffect(() => { if (open) setStep(0); }, [open]);
+  // 每次打开都从第 1 步开始（渲染中对比上一次的 open，不放进 effect）
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setStep(0);
+  }
 
   // Cleanup on unmount
   useEffect(() => () => {

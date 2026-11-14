@@ -253,6 +253,7 @@ export function WorkspaceTabs({
   });
   // 待跟进存在本地，服务端读不到；挂载后确实有才切过去，避免水合不一致
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     if (followupItems.length > 0) setActiveTab("followup");
     // 只在挂载时判断一次，之后尊重用户手动切换
     // eslint-disable-next-line react-hooks/exhaustive-deps

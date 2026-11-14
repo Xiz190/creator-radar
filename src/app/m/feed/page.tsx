@@ -43,6 +43,7 @@ export default function CompanionFeedPage() {
   // 都跟服务端发来的对不上 → 水合不一致。（同 /m 页 dateLabel 的坑。）
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     setNow(new Date());
   }, []);
 
@@ -67,6 +68,7 @@ export default function CompanionFeedPage() {
 
   useEffect(() => {
     const ac = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 开始请求时重置加载状态：这是和网络请求同步，属于 effect 的正当用途
     setState("loading");
     const p = buildFeedParams({ view, filters, subscriptions, q, limit: PAGE_SIZE, offset: 0 });
     fetch(`/api/monitor/items?${p.toString()}`, { cache: "no-store", signal: ac.signal })

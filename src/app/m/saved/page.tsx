@@ -27,6 +27,7 @@ export default function CompanionSavedPage() {
   // 同 Feed：now 必须挂载后才算，否则"1d"这类相对时间会被烤进预渲染产物
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     setNow(new Date());
   }, []);
 

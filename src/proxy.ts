@@ -42,6 +42,5 @@ export const config = {
     "/digest/:path*",
     "/settings/:path*",
     "/stats/:path*",
-    "/readinglist/:path*",
   ],
 };

@@ -165,10 +165,16 @@ export function WeeklyDigestModal({ open, onClose, items }: Props) {
   const en = usePrefs().language === "en";
   const markdown = useMemo(() => generateMarkdown(items, en), [items, en]);
 
+  // 打开时重置到「预览」：渲染中对比上一次的 open；showModal/close 是操作 DOM，留在 effect
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) { setTab("preview"); setCopied(false); }
+  }
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    if (open) { el.showModal(); setTab("preview"); setCopied(false); }
+    if (open) el.showModal();
     else { try { el.close(); } catch {} }
   }, [open]);
 

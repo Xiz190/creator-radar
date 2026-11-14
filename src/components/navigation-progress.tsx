@@ -10,15 +10,13 @@ function NavigationProgressInner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    let t1: ReturnType<typeof setTimeout>;
-    let t2: ReturnType<typeof setTimeout>;
-    let t3: ReturnType<typeof setTimeout>;
-
+    // 路由一变就从头播一遍进度条：这是对外部事件（导航）的同步，effect 里设状态是本意
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisible(true);
     setWidth(15);
-    t1 = setTimeout(() => setWidth(40), 80);
-    t2 = setTimeout(() => setWidth(75), 250);
-    t3 = setTimeout(() => {
+    const t1 = setTimeout(() => setWidth(40), 80);
+    const t2 = setTimeout(() => setWidth(75), 250);
+    const t3 = setTimeout(() => {
       setWidth(100);
       setTimeout(() => { setVisible(false); setWidth(0); }, 250);
     }, 500);

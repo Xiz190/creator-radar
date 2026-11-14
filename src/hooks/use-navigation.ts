@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import type { TranslationKey } from "@/lib/i18n";
 import {
-  Bell, Calculator, ChartColumn, ClipboardList, House, Inbox, Mail, Pin, Smartphone,
+  Bell, Calculator, ChartColumn, ClipboardList, House, Inbox, Mail, Smartphone,
   RadioTower, Rocket, Save, Settings, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { isOwnerOnlyPage } from "@/lib/owner-only";
@@ -43,7 +43,6 @@ const settingsMenu: MenuEntry[] = [
   { href: "/monitor", label: "系统管理", labelEn: "Admin", icon: Settings, desc: "监测任务、来源、关键词、诊断（管理员）", descEn: "Crawl jobs, sources, keywords, diagnostics (admin)" },
   { type: "divider", groupLabel: "设置与帮助", groupLabelEn: "Settings & help" },
   { href: "/stats", label: "个人统计", labelEn: "My stats", icon: TrendingUp, desc: "阅读完成率、关键词、最活跃来源", descEn: "Reading rate, keywords, most active sources" },
-  { href: "/readinglist", label: "稍后读清单", labelEn: "Read later", icon: Pin, desc: "在收件箱标记「稍后读」的条目", descEn: "Items you marked to read later" },
   { href: "/digest", label: "日报邮件", labelEn: "Daily email", icon: Mail, desc: "每天 8:40 发到邮箱的那封，在这里预览", descEn: "Preview the email sent every day at 08:40" },
   { href: "/settings/data", label: "数据备份/恢复", labelEn: "Backup & restore", icon: Save, desc: "导出便签、标签、偏好为 JSON，可再导入", descEn: "Export notes, tags and prefs as JSON and import them back" },
   { href: "/changelog", label: "更新日志", labelEn: "Changelog", icon: ClipboardList, desc: "查看各版本新增功能", descEn: "What's new in each version" },

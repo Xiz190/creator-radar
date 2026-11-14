@@ -19,6 +19,7 @@ export function CompanionHint() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
     if (isCompanionPath(pathname)) return setShow(false);
     let dismissed = false;
     try {

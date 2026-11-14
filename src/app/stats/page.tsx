@@ -2,6 +2,7 @@
 
 import { usePrefs } from "@/contexts/prefs-context";
 import { SourceName } from "@/components/source-name";
+import { getAllPersonalResearch } from "@/lib/personal-research";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -21,8 +22,7 @@ type LocalStats = {
   notes: number;
   tags: number;
   taggedItems: number;
-  readingList: number;
-  pinned: number;
+  followUps: number;
   savedPresets: number;
 };
 
@@ -46,19 +46,17 @@ export default function StatsPage() {
   useEffect(() => {
     // Load localStorage stats
     try {
-      const notes = JSON.parse(localStorage.getItem("inbox_notes") ?? "{}");
-      const tags = JSON.parse(localStorage.getItem("inbox_item_tags") ?? "{}");
-      const rl = JSON.parse(localStorage.getItem("inbox_reading_list") ?? "[]");
-      const pinned = JSON.parse(localStorage.getItem("inbox_pinned_items") ?? "[]");
+      // 2026-11 起个人处理只有「待跟进」一套（稍后读、置顶已并入）
+      const research = getAllPersonalResearch();
       const presets = JSON.parse(localStorage.getItem("inbox_saved_presets") ?? "[]");
       const allTags = new Set<string>();
-      for (const t of Object.values(tags) as string[][]) for (const tag of t) allTags.add(tag);
+      for (const r of research) for (const tag of r.tags) allTags.add(tag);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才能读浏览器数据（本地存储/窗口/当前时间），服务端读不到；放进渲染会造成水合不一致
       setLocal({
-        notes: Object.keys(notes).length,
+        notes: research.filter((r) => r.note.trim()).length,
         tags: allTags.size,
-        taggedItems: Object.keys(tags).length,
-        readingList: rl.length,
-        pinned: pinned.length,
+        taggedItems: research.filter((r) => r.tags.length > 0).length,
+        followUps: research.filter((r) => r.followUpStatus !== "none").length,
         savedPresets: presets.length,
       });
     } catch {}
@@ -176,8 +174,7 @@ export default function StatsPage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatBlock label={L("便签", "Notes")} value={local.notes} />
               <StatBlock label={L("已打标签条目", "Tagged items")} value={local.taggedItems} sub={en ? `${local.tags} tags` : `${local.tags} 种标签`} />
-              <StatBlock label={L("稍后读", "Read later")} value={local.readingList} />
-              <StatBlock label={L("置顶条目", "Pinned")} value={local.pinned} />
+              <StatBlock label={L("待跟进", "Follow-ups")} value={local.followUps} />
               <StatBlock label={L("已保存的筛选", "Saved filters")} value={local.savedPresets} />
             </div>
           </section>
